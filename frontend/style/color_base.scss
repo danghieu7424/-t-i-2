@@ -1,0 +1,48 @@
+// style/main.scss
+
+:root {
+  // BẮT BUỘC: Để trình duyệt hiểu và kích hoạt chế độ light/dark
+  color-scheme: light dark;
+
+  // --- 1. MÀU NỀN (BACKGROUND) ---
+  // Cấu trúc: light-dark(màu sáng cho light mode, màu tối cho dark mode)
+  --bg-app: light-dark(#f8f9fa, #121212);       // Nền tổng thể
+  --bg-surface: light-dark(#ffffff, #1e1e1e);   // Nền card, khung, menu
+  --bg-hover: light-dark(#e9ecef, #2c2c2c);     // Nền khi hover
+
+  // --- 2. MÀU CHỮ (TEXT) - NGƯỢC LẠI ---
+  // Light mode dùng chữ tối, Dark mode dùng chữ sáng
+  --text-main: light-dark(#212529, #f8f9fa);    // Chữ chính (Gần đen <-> Gần trắng)
+  --text-muted: light-dark(#6c757d, #adb5bd);   // Chữ phụ (Xám đậm <-> Xám nhạt)
+
+  // --- 3. MÀU BRAND/ACCENT ---
+  // Dark mode thường cần màu pastel/sáng hơn một chút để nổi trên nền đen
+  --brand-primary: light-dark(#0b7285, #66d9e8); 
+  --brand-danger: light-dark(#e03131, #ff8787);
+
+  // --- 4. VIỀN (BORDER) ---
+  --border-color: light-dark(#dee2e6, #495057);
+
+  // --- BỘ MÀU ALPHA TỰ ĐỘNG (SCSS LOOP) ---
+  // Tạo từ 5% đến 95% (step 5)
+  // Cú pháp: --black-a5, --white-a5, --black-a10, ...
+  @for $i from 1 through 19 {
+    $pct: $i * 5; // 5, 10, 15 ... 95
+    
+    // 1. Tạo biến Alpha Đen (Dùng cho Light mode để làm tối)
+    --dark-a#{$pct}: rgb(0 0 0 / #{$pct}%);
+    
+    // 2. Tạo biến Alpha Trắng (Dùng cho Dark mode để làm sáng)
+    --light-a#{$pct}: rgb(255 255 255 / #{$pct}%);
+
+    // 3. BIẾN THÔNG MINH (Auto switch)
+    // --overlay-5: Light mode thì phủ đen 5%, Dark mode thì phủ trắng 5%
+    // Rất hữu ích để tạo lớp phủ, hover state, modal backdrop
+    --overlay-#{$pct}: light-dark(rgb(0 0 0 / #{$pct}%), rgb(255 255 255 / #{$pct}%));
+    
+    // 4. BIẾN NGƯỢC (Reverse)
+    // --text-alpha-5: Light mode thì chữ đen mờ, Dark mode thì chữ trắng mờ
+    --text-alpha-#{$pct}: light-dark(rgb(0 0 0 / #{$pct}%), rgb(255 255 255 / #{$pct}%));
+  }
+}
+

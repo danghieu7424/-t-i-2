@@ -1,0 +1,14 @@
+{
+  "name": "frontend",
+  "version": "1.0.0",
+  "description": "1. [Rust](https://rust-lang.org/tools/install/)",
+  "main": "index.js",
+  "scripts": {
+    "dev": "trunk serve",
+    "build": "trunk build --release --dist ../backend/public"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

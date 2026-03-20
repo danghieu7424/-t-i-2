@@ -1,0 +1,21 @@
+.home-page {
+    padding: 2rem;
+    
+    h1 {
+        color: #0b7285; // Hardcode hoặc import biến
+        text-transform: uppercase;
+    }
+
+    button {
+        background: #0b7285;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 5px;
+        cursor: pointer;
+
+        &:hover {
+            opacity: 0.9;
+        }
+    }
+}

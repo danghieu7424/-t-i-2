@@ -1,0 +1,121 @@
+// Khung nền mờ bao phủ toàn màn hình
+.upload-modal-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85); // Nền tối mờ
+    backdrop-filter: blur(8px); // Hiệu ứng mờ ảo cao cấp
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &.active {
+        opacity: 1;
+        visibility: visible;
+        .upload-modal-content {
+            transform: scale(1) translateY(0);
+        }
+    }
+}
+
+// Nội dung chính của Modal
+.upload-modal-content {
+    background: #1e1e1e;
+    width: 90%;
+    max-width: 500px;
+    padding: 2.5rem;
+    border-radius: 24px;
+    border: 1px solid #333;
+    text-align: center;
+    transform: scale(0.9) translateY(20px);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+
+    // blind spot: Hiệu ứng khi đang kéo file vào (Dragging)
+    &.dragging {
+        border: 2px dashed #007bff;
+        background: rgba(0, 123, 255, 0.05);
+        transform: scale(1.02);
+        .drag-drop-zone {
+            color: #007bff;
+            transform: translateY(-5px);
+        }
+    }
+
+    h3 {
+        color: #fff;
+        font-size: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+        color: #888;
+        font-size: 0.9rem;
+        margin-bottom: 2rem;
+    }
+}
+
+// Grid chia 2 lựa chọn: Chụp ảnh & Chọn file
+.upload-options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+
+    .upload-item {
+        background: #2a2a2a;
+        padding: 20px;
+        border-radius: 16px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        transition: 0.2s;
+        border: 1px solid transparent;
+
+        &:hover {
+            background: #333;
+            border-color: #444;
+            transform: translateY(-3px);
+        }
+
+        .icon { font-size: 2rem; }
+        .label { color: #ccc; font-weight: 600; font-size: 0.9rem; }
+    }
+}
+
+// Vùng Drag & Drop bên dưới
+.drag-drop-zone {
+    border: 2px dashed #333;
+    border-radius: 16px;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    color: #555;
+    transition: 0.3s;
+
+    .icon { font-size: 1.5rem; }
+    .label { font-size: 0.85rem; font-weight: 500; }
+}
+
+// Nút đóng
+.btn-close-modal {
+    margin-top: 25px;
+    background: transparent;
+    border: none;
+    color: #666;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: underline;
+    &:hover { color: #fff; }
+}
+
+.hidden { display: none; }

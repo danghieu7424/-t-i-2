@@ -1,0 +1,55 @@
+.stat-card {
+    padding: 1.5rem;
+    border-radius: 12px;
+    background: var(--bg-surface); // Tự đổi Trắng <-> Đen xám
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    transition: all 0.2s ease;
+
+    // Hiệu ứng hover dùng biến overlay thông minh của bạn
+    &:hover {
+        transform: translateY(-5px);
+        background: var(--bg-hover);
+    }
+
+    // Border trái phân loại (Dùng màu Brand đã định nghĩa)
+    &.category-dien { border-left: 5px solid #ff9800; }
+    &.category-nuoc { border-left: 5px solid var(--brand-primary); }
+    &.category-nguyen-lieu { border-left: 5px solid #4caf50; }
+
+    .title {
+        font-size: 0.875rem;
+        color: var(--text-muted); // Tự đổi Xám đậm <-> Xám nhạt
+        margin-bottom: 0.5rem;
+    }
+
+    h3 {
+        font-size: 1.6rem;
+        font-weight: 800; // Làm đậm hơn nữa
+        margin: 8px 0;
+        // Sử dụng biến text-main nhưng ép độ sáng cao hơn trong dark mode
+        color: var(--text-main);
+        letter-spacing: 0.5px;
+        
+        // Hiệu ứng giúp con số "nổi" lên khỏi nền tối
+        text-shadow: 0 0 10px var(--overlay-5); 
+    }
+
+    .status {
+        font-size: 0.85rem;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+
+        // Màu đỏ và xanh phải cực kỳ tươi (Vibrant) để nổi trên nền đen
+        &.up { 
+            color: #ff5252; // Red neon
+            filter: drop-shadow(0 0 2px rgba(255, 82, 82, 0.5));
+        }
+        &.down { 
+            color: #69f0ae; // Green neon
+            filter: drop-shadow(0 0 2px rgba(105, 240, 174, 0.5));
+        }
+    }
+}

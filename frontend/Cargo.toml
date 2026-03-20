@@ -1,0 +1,80 @@
+[package]
+name = "leptos_demo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+# --- Framework UI ---
+leptos = { version = "0.6", features = ["csr"] }
+leptos_router = { version = "0.6", features = ["csr"] }
+gloo-timers = { version = "0.3", features = ["futures"] }
+
+# --- Xử lý API & JSON ---
+# reqwest = { version = "0.11", features = ["json"] } # Có thể bỏ nếu đã dùng gloo-net
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+gloo-net = "0.6"
+quick-xml = { version = "0.31", features = ["async-tokio"] }
+futures = "0.3"
+
+# --- Log & Debug ---
+console_log = "1"
+log = "0.4"
+console_error_panic_hook = "0.1"
+
+# Thêm dependency này để quản lý async trong callback
+wasm-bindgen-futures = "0.4"
+js-sys = "0.3"
+wasm-bindgen = "0.2"
+anyhow = "1.0"
+
+# crypto
+base64 = "0.21"
+p256 = { version = "0.13", features = ["ecdh"] }
+rand = "0.8"
+hex = "0.4"
+sha2 = "0.10"
+aes-gcm = "0.10"
+
+# --- WEB-SYS (Khai báo 1 lần duy nhất ở đây) ---
+[dependencies.web-sys]
+version = "0.3"
+features = [
+    # Các thẻ HTML
+    "HtmlVideoElement",
+    "HtmlMediaElement",   # QUAN TRỌNG: Để dùng .play(), .pause(), .duration
+    "HtmlDivElement",
+    "HtmlElement",
+    "HtmlInputElement",
+    "FileList",
+    "File",
+    "FormData",
+    "MediaError",
+    "MediaSourceReadyState",
+    "Storage",   
+    "DragEvent",
+    "DataTransfer",
+    
+    # Các kiểu dữ liệu DOM
+    "Document",
+    "Element",            # QUAN TRỌNG: Để dùng .getBoundingClientRect()
+    "DomRect",            # QUAN TRỌNG: Kiểu trả về của rect
+    "TimeRanges",         # QUAN TRỌNG: Kiểu trả về của .buffered()
+    
+    # Sự kiện
+    "MouseEvent",
+    "Event",
+    "TouchEvent",
+    "TouchList",
+    "Touch",
+
+    # === THÊM MỚI CÁC DÒNG NÀY ===
+    "MediaSource",       # Cần để tạo stream ảo
+    "SourceBuffer",      # Cần để nạp dữ liệu chunk
+    "Url",               # Cần để tạo blob URL
+    "EventTarget",       # Cần để lắng nghe sự kiện
+    "CustomEvent",
+    "Window",
+    "RequestCredentials",
+]
+

@@ -1,0 +1,3 @@
+#[build]
+# Tắt tạo hash integrity cho file resource
+#no_sri = true
