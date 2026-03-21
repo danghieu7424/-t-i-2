@@ -3,21 +3,44 @@ use leptos::*;
 
 #[component]
 pub fn StatCard(
-    #[prop(into)] title: String,
-    #[prop(into)] amount: String,
+    title: String,
+    amount: String,
     percent: f64,
-    #[prop(into)] category_slug: String, // Ví dụ: "dien", "nuoc"
+    budget: String,
+    progress: f64, // Thêm prop để nhận % thực tế
+    category_slug: String,
 ) -> impl IntoView {
     let is_up = percent > 0.0;
-    let status_class = if is_up { "status up" } else { "status down" };
-    let card_class = format!("stat-card category-{}", category_slug);
-
+    // Cảnh báo đỏ nếu tiêu quá 90% ngân sách
+    let progress_style = format!("width: {}%; background: {}", 
+        if progress > 100.0 { 100.0 } else { progress },
+        if progress > 90.0 { "#ff4d4d" } else { "var(--accent-color, #4caf50)" }
+    );
+    
     view! {
-        <div class=card_class>
-            <p class="title">{title}</p>
-            <h3>{amount} " VNĐ"</h3>
-            <div class=status_class>
-                {if is_up { "▲ " } else { "▼ " }} {format!("{:.2}%", percent.abs())}
+        <div class=format!("stat-card-v2 category-{}", category_slug)>
+            <div class="stat-main-info">
+                <p class="label">{title}</p>
+                <div class="value-group">
+                    <h3>{amount} " VNĐ"</h3>
+                    <span class=if is_up {
+                        "pct up"
+                    } else {
+                        "pct down"
+                    }>
+                        {if is_up { "▲ " } else { "▼ " }} {format!("{:.2}%", percent.abs())}
+                    </span>
+                </div>
+                <p class="sub-label">"So với tháng trước"</p>
+            </div>
+
+            <div class="stat-budget-info">
+                <p class="label">"Hạn mức kế hoạch"</p>
+                <h4>{budget} " VNĐ"</h4>
+                <div class="progress-bar">
+                    <div class="progress-fill" style=progress_style></div>
+                </div>
+                <p class="progress-text">{format!("{:.1}%", progress)}</p>
             </div>
         </div>
     }

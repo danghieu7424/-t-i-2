@@ -35,6 +35,7 @@ pub struct StatItem {
     pub title: String,
     pub amount: f64,
     pub percent: f64,
+    pub budget: f64, // THÊM TRƯỜNG NÀY
     pub slug: String,
 }
 
@@ -89,9 +90,9 @@ async fn get_dashboard_data(State(state): State<Arc<AppState>>) -> Json<Dashboar
     };
 
     let stats = vec![
-        StatItem { title: "Tiền Điện".into(), amount: dien[11], percent: calc_pct(dien[11], dien[10]), slug: "dien".into() },
-        StatItem { title: "Tiền Nước".into(), amount: nuoc[11], percent: calc_pct(nuoc[11], nuoc[10]), slug: "nuoc".into() },
-        StatItem { title: "Nguyên liệu".into(), amount: nl[11], percent: calc_pct(nl[11], nl[10]), slug: "nguyen-lieu".into() },
+        StatItem { title: "Tiền Điện".into(), amount: dien[11], percent: calc_pct(dien[11], dien[10]), budget: 500000.0, slug: "dien".into() },
+        StatItem { title: "Tiền Nước".into(), amount: nuoc[11], percent: calc_pct(nuoc[11], nuoc[10]), budget: 200000.0, slug: "nuoc".into() },
+        StatItem { title: "Nguyên liệu".into(), amount: nl[11], percent: calc_pct(nl[11], nl[10]), budget: 2000000.0, slug: "nguyen-lieu".into() },
     ];
 
     Json(DashboardData { 

@@ -1,37 +1,37 @@
 use leptos::*;
 use leptos_router::*;
+// Giả sử file store của bạn nằm ở src/store.rs
+mod store; 
+use store::{init_global_state, GlobalState};
 
-// 1. KHAI BÁO MODULE ĐỂ RUST TÌM THẤY CODE
 pub mod components {
     pub mod login;
     pub mod Dashboard;
     pub mod StatCard;
-    pub mod Nav;           // Thêm dòng này
-    pub mod UploadModal;   // Thêm dòng này
+    pub mod Nav;           
+    pub mod UploadModal;   
 }
 
-// 2. IMPORT CÁC COMPONENT SAU KHI ĐÃ KHAI BÁO MOD
 use components::login::Login;
 use components::Dashboard::Dashboard;
 
 fn main() {
-    // Kích hoạt logging để debug
     _ = console_log::init_with_level(log::Level::Debug);
     console_error_panic_hook::set_once();
-
     mount_to_body(|| view! { <App /> });
 }
 
 #[component]
 fn App() -> impl IntoView {
+    // Khởi tạo GlobalState một lần duy nhất tại gốc
+    let state = init_global_state();
+    provide_context(state);
+
     view! {
         <Router>
             <main>
                 <Routes>
-                    // Trang Login
                     <Route path="/login" view=Login />
-
-                    // Dashboard được bảo vệ
                     <Route
                         path="/"
                         view=move || {
@@ -40,8 +40,8 @@ fn App() -> impl IntoView {
                                 .and_then(|s| s.get_item("user_id").ok().flatten())
                                 .is_some();
                             if is_logged_in {
+                                // Kiểm tra login từ context hoặc storage
 
-                                // Ép kiểu IntoView để sửa lỗi type annotations needed
                                 view! { <Dashboard /> }
                                     .into_view()
                             } else {
