@@ -1,3 +1,4 @@
+// src/components/Nav/mod.rs
 use leptos::*;
 use crate::store::GlobalState;
 

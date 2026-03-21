@@ -1,3 +1,4 @@
+// src/components/Dashboard/mod.rs
 use leptos::*;
 use crate::components::Nav::Nav;
 use crate::components::StatCard::StatCard;
@@ -19,7 +20,7 @@ pub struct StatItem {
     pub title: String,
     pub amount: f64,
     pub percent: f64,
-    pub budget: f64, // THÊM TRƯỜNG NÀY
+    pub budget: f64, // FIX: Đã thêm budget vào đây
     pub slug: String,
 }
 
@@ -39,11 +40,9 @@ fn format_thousands(n: f64) -> String {
 pub fn Dashboard() -> impl IntoView {
     let state = use_context::<GlobalState>().expect("Phải có GlobalState");
     let domain = state.domain.clone(); 
-    
     let (is_dragging, set_is_dragging) = create_signal(false);
 
-    // 1. Dùng create_resource với domain từ context
-   let dash_resource = create_resource(|| (), move |_| {
+    let dash_resource = create_resource(|| (), move |_| {
         let url = format!("{}/api/expenses", domain);
         async move {
             gloo_net::http::Request::get(&url)
@@ -58,23 +57,17 @@ pub fn Dashboard() -> impl IntoView {
         spawn_local(async move {
             let window = web_sys::window().unwrap();
             let storage = window.local_storage().unwrap().unwrap();
-            
-            // FIX LỖI E0593: unwrap_or_else cần nhận 1 đối số lỗi (thường dùng |_|)
-            let user_id = storage.get_item("user_id")
-                .unwrap_or(None) 
-                .unwrap_or_else(|| "1".to_string());
+            let user_id = storage.get_item("user_id").unwrap_or(None).unwrap_or_else(|| "1".to_string());
             
             let form_data = web_sys::FormData::new().unwrap();
             form_data.append_with_blob("file", &file).unwrap();
             form_data.append_with_str("user_id", &user_id).unwrap();
 
-            let _ = gloo_net::http::Request::post(&url)
-                .body(form_data).expect("Failed").send().await;
+            let _ = gloo_net::http::Request::post(&url).body(form_data).expect("Failed").send().await;
             let _ = window.location().reload();
         });
     };
 
-    // Tạo các wrapper để dùng trong view mà không bị move mất gốc
     let on_file_change = {
         let upload = upload_action.clone();
         move |ev: ev::Event| {
@@ -100,7 +93,6 @@ pub fn Dashboard() -> impl IntoView {
         }
     };
 
-    // Logic vẽ biểu đồ (Giữ nguyên)
     create_effect(move |_| {
         if let Some(d) = dash_resource.get() {
             let js_code = format!(r#"
@@ -130,8 +122,104 @@ pub fn Dashboard() -> impl IntoView {
             <Nav />
             <div class="dashboard-container">
                 <div class="main-content">
+                    // TỔNG TIỀN CHI TRONG THÁNG (Vùng tóm tắt trên biểu đồ)
+                    <Suspense fallback=|| {
+                        view! { <div>"..."</div> }
+                    }>
+                        {move || {
+                            dash_resource
+                                .get()
+                                .map(|d| {
+                                    let total_this_month: f64 = d
+                                        .stats
+                                        .iter()
+                                        .map(|s| s.amount)
+                                        .sum();
+                                    let total_budget: f64 = d.stats.iter().map(|s| s.budget).sum();
+                                    view! {
+                                        <Suspense fallback=|| {
+                                            view! { <div class="summary-loading">"..."</div> }
+                                        }>
+                                            {move || {
+                                                dash_resource
+                                                    .get()
+                                                    .map(|d| {
+                                                        let current_total: f64 = d
+                                                            .stats
+                                                            .iter()
+                                                            .map(|s| s.amount)
+                                                            .sum();
+                                                        let prev_total_dien = d
+                                                            .dien_series
+                                                            .get(d.dien_series.len().saturating_sub(2))
+                                                            .unwrap_or(&0.0);
+                                                        let prev_total_nuoc = d
+                                                            .nuoc_series
+                                                            .get(d.nuoc_series.len().saturating_sub(2))
+                                                            .unwrap_or(&0.0);
+                                                        let prev_total_nl = d
+                                                            .nl_series
+                                                            .get(d.nl_series.len().saturating_sub(2))
+                                                            .unwrap_or(&0.0);
+                                                        let last_month_total = prev_total_dien + prev_total_nuoc
+                                                            + prev_total_nl;
+                                                        let total_diff_pct = if last_month_total > 0.0 {
+                                                            ((current_total - last_month_total) / last_month_total)
+                                                                * 100.0
+                                                        } else {
+                                                            0.0
+                                                        };
+                                                        let is_total_up = total_diff_pct > 0.0;
+                                                        // 1. Tính tổng tháng này (Tháng cuối cùng trong series)
+
+                                                        // 2. Tính tổng tháng trước (Cần lấy từ series dữ liệu gốc)
+                                                        // Giả sử series có 12 tháng, index 11 là hiện tại, index 10 là tháng trước
+
+                                                        // 3. Tính % tăng trưởng tổng
+
+                                                        view! {
+                                                            <div class="month-summary-header">
+                                                                <div class="summary-item">
+                                                                    <span class="label">"Tổng chi tháng này"</span>
+                                                                    <div class="value-row">
+                                                                        <h2 class="total-value">
+                                                                            {format_thousands(current_total)} " VNĐ"
+                                                                        </h2>
+                                                                        <span class=if is_total_up {
+                                                                            "pct-badge up"
+                                                                        } else {
+                                                                            "pct-badge down"
+                                                                        }>
+                                                                            {if is_total_up { "↑ " } else { "↓ " }}
+                                                                            {format!("{:.1}%", total_diff_pct.abs())}
+                                                                        </span>
+                                                                    </div>
+                                                                    <p class="prev-label">
+                                                                        "Tháng trước: " {format_thousands(last_month_total)}
+                                                                        " VNĐ"
+                                                                    </p>
+                                                                </div>
+
+                                                                <div class="summary-item divider"></div>
+
+                                                                <div class="summary-item">
+                                                                    <span class="label">"Ngân sách kế hoạch"</span>
+                                                                    <h2 class="budget-value">
+                                                                        {format_thousands(d.stats.iter().map(|s| s.budget).sum())}
+                                                                        " VNĐ"
+                                                                    </h2>
+                                                                </div>
+                                                            </div>
+                                                        }
+                                                    })
+                                            }}
+                                        </Suspense>
+                                    }
+                                })
+                        }}
+                    </Suspense>
+
                     <div class="chart-container">
-                        <h3>"Biến động chi phí thực tế (12 tháng)"</h3>
                         <div style="height: 380px;">
                             <canvas id="payment-chart-canvas"></canvas>
                         </div>
@@ -155,14 +243,12 @@ pub fn Dashboard() -> impl IntoView {
                                                     } else {
                                                         0.0
                                                     };
-                                                    // Tính toán % progress thực tế
                                                     view! {
                                                         <StatCard
                                                             title=s.title
                                                             amount=format_thousands(s.amount)
                                                             percent=s.percent
                                                             budget=format_thousands(s.budget)
-                                                            // Truyền progress thực tế vào
                                                             progress=progress
                                                             category_slug=s.slug
                                                         />

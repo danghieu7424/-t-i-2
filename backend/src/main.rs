@@ -124,6 +124,7 @@ async fn main() {
     // Cấu hình CORS (Đã sửa lỗi allow_any_origin)
     // main.rs
     let allowed_origins = [
+        "https://test.dh74.io.vn".parse::<HeaderValue>().unwrap(),
         "https://des.dh74.io.vn".parse::<HeaderValue>().unwrap(),
         "http://localhost:8080".parse::<HeaderValue>().unwrap(),
         "http://localhost:5000".parse::<HeaderValue>().unwrap(),

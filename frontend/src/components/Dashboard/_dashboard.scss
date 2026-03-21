@@ -173,22 +173,131 @@
     &.category-nguyen-lieu { border-left-color: #2ecc71; }
 }
 
-// Phần Upload Widget (Bên phải)
 .upload-widget {
-    background: #1e1e1e;
-    padding: 25px;
+    background: #1a1a1a;
+    padding: 24px;
     border-radius: 20px;
     border: 1px solid #333;
     position: sticky;
-    top: 90px;
+    top: 100px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+
+    h3 {
+        color: #fff;
+        font-size: 1.1rem;
+        margin-bottom: 20px;
+        font-weight: 700;
+        text-align: left;
+    }
 
     .drop-zone {
-        border: 2px dashed #444;
-        border-radius: 15px;
-        padding: 40px 10px;
-        text-align: center;
-        &.dragging { border-color: #007bff; background: rgba(0,123,255,0.05); }
-        .icon { font-size: 3rem; display: block; margin-bottom: 10px; }
-        .text { color: #666; display: block; margin-bottom: 20px; }
+        border: 2px dashed #333;
+        border-radius: 16px;
+        padding: 40px 20px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 15px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        background: rgba(255, 255, 255, 0.02);
+        cursor: pointer;
+
+        // Hiệu ứng quan trọng khi Drag file vào
+        &.dragging {
+            border-color: #f1c40f; // Màu vàng giống line "Điện" cho đồng bộ
+            background: rgba(241, 196, 15, 0.05);
+            transform: scale(1.02);
+            .icon { transform: translateY(-5px); filter: drop-shadow(0 0 8px #f1c40f); }
+        }
+
+        .icon {
+            font-size: 3rem;
+            transition: 0.3s;
+            opacity: 0.8;
+        }
+
+        .text {
+            color: #666;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 10px;
+        }
+    }
+}
+
+.action-buttons {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+
+    .btn-action {
+        flex: 1;
+        background: #252525;
+        color: #ddd;
+        padding: 10px 5px;
+        border-radius: 10px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        cursor: pointer;
+        transition: 0.2s;
+        border: 1px solid #333;
+
+        &:hover {
+            background: #333;
+            color: #fff;
+            border-color: #444;
+        }
+
+        // Ẩn input file thực tế
+        input.hidden {
+            display: none;
+        }
+    }
+}
+
+.month-summary-header {
+    display: flex;
+    align-items: center;
+    background: #1e1e1e;
+    padding: 25px 35px;
+    border-radius: 20px;
+    margin-bottom: 30px;
+    border: 1px solid #333;
+
+    .summary-item {
+        flex: 1;
+        .label { color: #666; font-size: 0.8rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+        
+        .value-row {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 8px 0;
+            h2 { font-size: 2.2rem; margin: 0; color: #fff; }
+        }
+
+        .pct-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 800;
+            &.up { background: rgba(255, 77, 77, 0.1); color: #ff4d4d; }
+            &.down { background: rgba(46, 204, 113, 0.1); color: #2ecc71; }
+        }
+
+        .prev-label { color: #444; font-size: 0.85rem; font-weight: 500; }
+        
+        &.divider {
+            flex: 0 0 1px;
+            height: 50px;
+            background: #333;
+            margin: 0 40px;
+        }
+
+        .budget-value { color: #555; }
     }
 }
