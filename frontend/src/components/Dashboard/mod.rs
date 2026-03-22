@@ -42,8 +42,16 @@ pub fn Dashboard() -> impl IntoView {
     let domain = state.domain.clone(); 
     let (is_dragging, set_is_dragging) = create_signal(false);
 
+    // Sửa tương tự cho dash_resource để lọc đúng dữ liệu của User đó
     let dash_resource = create_resource(|| (), move |_| {
-        let url = format!("{}/api/expenses", domain);
+        let storage = window().local_storage().unwrap().unwrap();
+        let user_id = storage.get_item("user_id")
+            .ok()
+            .flatten()
+            .unwrap_or_else(|| "1".to_string());
+        
+        // Bỏ dấu & ở cuối chuỗi format
+        let url = format!("{}/api/expenses?user_id={}", domain, user_id);   
         async move {
             gloo_net::http::Request::get(&url)
                 .send().await.unwrap()
@@ -52,18 +60,27 @@ pub fn Dashboard() -> impl IntoView {
     });
 
     let upload_domain = state.domain.clone();
+    // Trong Dashboard component
     let upload_action = move |file: web_sys::File| {
         let url = format!("{}/api/expenses/upload", upload_domain);
         spawn_local(async move {
             let window = web_sys::window().unwrap();
             let storage = window.local_storage().unwrap().unwrap();
-            let user_id = storage.get_item("user_id").unwrap_or(None).unwrap_or_else(|| "1".to_string());
+            
+            // SỬA: Lấy SUID chuẩn từ storage. Nếu không có mới lấy "1"
+            let user_id = storage.get_item("user_id")
+                .ok()
+                .flatten()
+                .unwrap_or_else(|| "1".to_string());
             
             let form_data = web_sys::FormData::new().unwrap();
             form_data.append_with_blob("file", &file).unwrap();
-            form_data.append_with_str("user_id", &user_id).unwrap();
+            
+            // QUAN TRỌNG: Gửi SUID chuỗi lên field "user_id"
+            form_data.append_with_str("user_id", &user_id).unwrap(); 
 
-            let _ = gloo_net::http::Request::post(&url).body(form_data).expect("Failed").send().await;
+            let _ = gloo_net::http::Request::post(&url)
+                .body(form_data).expect("Failed").send().await;
             let _ = window.location().reload();
         });
     };

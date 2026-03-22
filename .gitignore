@@ -1,5 +1,8 @@
 backend/target
 backend/Cargo.lock
+backend/.env
+
+build/.env
 
 frontend/target
 frontend/Cargo.lock

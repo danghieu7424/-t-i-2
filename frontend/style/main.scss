@@ -3,9 +3,9 @@
 @use "./color_base.scss";
 @use "../src/components/login/login";
 @use "../src/components/Nav/nav";
-@use "../src/components/StatCard/stat_card";
 @use "../src/components/home/home";
 @use "../src/components/Dashboard/dashboard";
+@use "../src/components/StatCard/stat_card";
 @use "../src/components/UploadModal/upload_modal";
 
 // 2. Biến Global (Dùng chung cho cả app)

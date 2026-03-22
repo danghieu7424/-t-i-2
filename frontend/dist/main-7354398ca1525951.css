@@ -196,56 +196,6 @@
   transform: translateY(-1px);
 }
 
-.stat-card {
-  padding: 1.5rem;
-  border-radius: 12px;
-  background: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  color: var(--text-main);
-  transition: all 0.2s ease;
-}
-.stat-card:hover {
-  transform: translateY(-5px);
-  background: var(--bg-hover);
-}
-.stat-card.category-dien {
-  border-left: 5px solid #ff9800;
-}
-.stat-card.category-nuoc {
-  border-left: 5px solid var(--brand-primary);
-}
-.stat-card.category-nguyen-lieu {
-  border-left: 5px solid #4caf50;
-}
-.stat-card .title {
-  font-size: 0.875rem;
-  color: var(--text-muted);
-  margin-bottom: 0.5rem;
-}
-.stat-card h3 {
-  font-size: 1.6rem;
-  font-weight: 800;
-  margin: 8px 0;
-  color: var(--text-main);
-  letter-spacing: 0.5px;
-  text-shadow: 0 0 10px var(--overlay-5);
-}
-.stat-card .status {
-  font-size: 0.85rem;
-  font-weight: 700;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.stat-card .status.up {
-  color: #ff5252;
-  filter: drop-shadow(0 0 2px rgba(255, 82, 82, 0.5));
-}
-.stat-card .status.down {
-  color: #69f0ae;
-  filter: drop-shadow(0 0 2px rgba(105, 240, 174, 0.5));
-}
-
 .home-page {
   padding: 2rem;
 }
@@ -369,89 +319,6 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
-}
-
-.stat-card-v2 {
-  background: #1e1e1e;
-  border-radius: 16px;
-  padding: 22px;
-  display: grid;
-  grid-template-columns: 1fr 220px;
-  border-left: 6px solid #444;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-  transition: transform 0.2s;
-}
-.stat-card-v2:hover {
-  transform: translateY(-2px);
-  background: #252525;
-}
-.stat-card-v2 .label {
-  color: #888;
-  font-size: 0.85rem;
-  margin-bottom: 8px;
-  text-transform: uppercase;
-}
-.stat-card-v2 .value-group {
-  display: flex;
-  align-items: center;
-  gap: 15px;
-}
-.stat-card-v2 .value-group h3 {
-  font-size: 1.8rem;
-  color: #fff;
-  margin: 0;
-}
-.stat-card-v2 .value-group .pct {
-  font-size: 0.9rem;
-  font-weight: bold;
-}
-.stat-card-v2 .value-group .pct.up {
-  color: #ff4d4d;
-}
-.stat-card-v2 .value-group .pct.down {
-  color: #2ecc71;
-}
-.stat-card-v2 .sub-label {
-  color: #555;
-  font-size: 0.75rem;
-  margin-top: 5px;
-}
-.stat-card-v2 .stat-budget-info {
-  border-left: 1px solid #333;
-  padding-left: 20px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-.stat-card-v2 .stat-budget-info h4 {
-  color: #ccc;
-  margin: 8px 0;
-  font-size: 1.1rem;
-}
-.stat-card-v2 .stat-budget-info .progress-bar {
-  height: 8px;
-  background: #333;
-  border-radius: 10px;
-  overflow: hidden;
-  margin: 10px 0 5px;
-}
-.stat-card-v2 .stat-budget-info .progress-bar .progress-fill {
-  height: 100%;
-  transition: width 0.5s ease;
-}
-.stat-card-v2 .stat-budget-info .progress-text {
-  font-size: 0.75rem;
-  color: #666;
-  text-align: right;
-}
-.stat-card-v2.category-dien {
-  border-left-color: #f1c40f;
-}
-.stat-card-v2.category-nuoc {
-  border-left-color: #3498db;
-}
-.stat-card-v2.category-nguyen-lieu {
-  border-left-color: #2ecc71;
 }
 
 .upload-widget {
@@ -590,6 +457,88 @@
 }
 .month-summary-header .summary-item .budget-value {
   color: #555;
+}
+
+.stat-card-v2 {
+  position: relative;
+  background: #1a1a1a;
+  padding: 20px 25px;
+  border-radius: 16px;
+  border: 1px solid #333;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+.stat-card-v2 .stat-main-info .label {
+  color: #666;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+.stat-card-v2 .stat-main-info h3 {
+  font-size: 1.5rem;
+  color: #fff;
+  margin: 0;
+}
+.stat-card-v2 .badge-alert {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: #ff4d4d;
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 900;
+  padding: 4px 8px;
+  border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(255, 77, 77, 0.3);
+}
+.stat-card-v2.over-budget {
+  border-left: 4px solid #ff4d4d;
+  background: linear-gradient(90deg, rgba(255, 77, 77, 0.05) 0%, #1a1a1a 100%);
+}
+.stat-card-v2.over-budget h3 {
+  color: #ff4d4d;
+}
+.stat-card-v2.near-limit {
+  border-left: 4px solid #f39c12;
+}
+.stat-card-v2 .stat-budget-info {
+  border-top: 1px solid #222;
+  padding-top: 15px;
+}
+.stat-card-v2 .stat-budget-info .budget-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.stat-card-v2 .stat-budget-info .budget-header .label {
+  color: #555;
+  font-size: 0.75rem;
+}
+.stat-card-v2 .stat-budget-info .budget-header .budget-percent {
+  font-weight: 800;
+  font-size: 0.85rem;
+  color: #fff;
+  font-family: "Courier New", Courier, monospace;
+}
+.stat-card-v2 .stat-budget-info h4 {
+  font-size: 1.1rem;
+  color: #999;
+  margin: 0 0 10px 0;
+}
+.stat-card-v2 .stat-budget-info .progress-bar {
+  height: 6px;
+  background: #222;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.stat-card-v2 .stat-budget-info .progress-bar .progress-fill {
+  height: 100%;
+  transition: width 0.5s ease;
 }
 
 .upload-modal-backdrop {
@@ -731,3 +680,5 @@ body {
   background-color: var(--bg-app);
   color: var(--text-main);
 }
+
+/*# sourceMappingURL=data:application/json;charset=utf-8,%7B%22version%22:3,%22sourceRoot%22:%22%22,%22sources%22:%5B%22../../style/color_base.scss%22,%22../../src/components/login/_login.scss%22,%22../../src/components/Nav/_nav.scss%22,%22../../src/components/home/_home.scss%22,%22../../src/components/Dashboard/_dashboard.scss%22,%22../../src/components/StatCard/_stat_card.scss%22,%22../../src/components/UploadModal/_upload_modal.scss%22,%22../../style/main.scss%22%5D,%22names%22:%5B%5D,%22mappings%22:%22AAEA;EAEE;EAIA;EACA;EACA;EAIA;EACA;EAIA;EACA;EAGA;EASE;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;EAZA;EAGA;EAKA;EAIA;;;AC5CJ;EACI;EACA;EACA;EACA;EACA;;AAEA;EACI;EACA;EACA;EACA;EACA;EACA;EACA;EACA;;AAEA;EAAQ;EAAiB;;AACzB;EAAK;EAAa;EAAuB;;AACzC;EAAI;EAAa;;AAEjB;EACI;EACA;EACA;;AAGJ;EAAU;EAAmB;;;AC3BrC;EACI;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;;AAEA;EACI;EACA;EACA;EACA;;AACA;EAAa;;AACb;EACI;EACA;EACA;EACA;;AAIR;EACI;EACA;EACA;;AAEA;EACI;EACA;EACA;EACA;EACA;;AAEA;EACI;EACA;EACA;;AAEJ;EACI;EACA;EACA;EACA;EACA;;AAIR;EACI;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;;AAEA;EACI;EACA;EACA;;;ACpEhB;EACI;;AAEA;EACI;EACA;;AAGJ;EACI;EACA;EACA;EACA;EACA;EACA;;AAEA;EACI;;;ACjBZ;EACE;EACA;EACA;;AAEA;EACE;EACA;EACA;EACA;;AAGF;EACE;EACA;EACA;EACA;;AAEA;EACE;EACA;;AAIJ;EACE;EACA;EACA;EACA;EACA;EACA;EACA;;AAEA;EACE;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;;AACA;EACE;;AAIJ;EACE;EACA;EACA;EACA;;AAEA;EACE;;AAGF;EACE;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;;AAEA;EACE;;AAEF;EACE;EACA;;AAGF;EACE;;AAMR;EACE;;;AAKJ;EACE;EACA;EACA;EACA;EACA;EACA;;AAEA;EARF;IASI;;;;AAIJ;EACE;EACA;EACA;;;AAIF;EACE;EACA;EACA;;;AAKF;EACE;EACA;EACA;EACA;EACA;EACA;EACA;;AAEA;EACE;EACA;EACA;EACA;EACA;;AAGF;EACE;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;;AAGA;EACE;EACA;EACA;;AACA;EACE;EACA;;AAIJ;EACE;EACA;EACA;;AAGF;EACE;EACA;EACA;EACA;;;AAKN;EACE;EACA;EACA;;AAEA;EACE;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;;AAEA;EACE;EACA;EACA;;AAIF;EACE;;;AAKN;EACE;EACA;EACA;EACA;EACA;EACA;EACA;;AAEA;EACE;;AACA;EACE;EACA;EACA;EACA;EACA;;AAGF;EACE;EACA;EACA;EACA;;AACA;EACE;EACA;EACA;;AAIJ;EACE;EACA;EACA;EACA;;AACA;EACE;EACA;;AAEF;EACE;EACA;;AAIJ;EACE;EACA;EACA;;AAGF;EACE;EACA;EACA;EACA;;AAGF;EACE;;;AC7QN;EACE;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EAEA;;AAGE;EACE;EACA;EACA;EACA;EACA;;AAEF;EACE;EACA;EACA;;AAIJ;EACE;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;;AAGF;EACE;EACA;;AAKA;EACE;;AAIJ;EACE;;AAGF;EACE;EACA;;AAEA;EACE;EACA;EACA;EACA;;AACA;EACE;EACA;;AAEF;EACE;EACA;EACA;EACA;;AAIJ;EACE;EACA;EACA;;AAGF;EACE;EACA;EACA;EACA;;AACA;EACE;EACA;;;AC1FR;EACI;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;;AAEA;EACI;EACA;;AACA;EACI;;;AAMZ;EACI;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;;AAGA;EACI;EACA;EACA;;AACA;EACI;EACA;;AAIR;EACI;EACA;EACA;;AAGJ;EACI;EACA;EACA;;;AAKR;EACI;EACA;EACA;EACA;;AAEA;EACI;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;EACA;;AAEA;EACI;EACA;EACA;;AAGJ;EAAQ;;AACR;EAAS;EAAa;EAAkB;;;AAKhD;EACI;EACA;EACA;EACA;EACA;EACA;EACA;EACA;;AAEA;EAAQ;;AACR;EAAS;EAAoB;;;AAIjC;EACI;EACA;EACA;EACA;EACA;EACA;EACA;;AACA;EAAU;;;AAGd;EAAU;;;ACzGV;EACE;EACA;EACA;EAEA;EACA;;;AAIF;EACE;EACA;EACA;EACA;EACA;EACA%22,%22file%22:%22main.css%22%7D */

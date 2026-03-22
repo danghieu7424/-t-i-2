@@ -1,3 +1,4 @@
+// src/main.rs
 use leptos::*;
 use leptos_router::*;
 // Giả sử file store của bạn nằm ở src/store.rs

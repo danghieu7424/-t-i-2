@@ -1,55 +1,96 @@
-.stat-card {
-    padding: 1.5rem;
-    border-radius: 12px;
-    background: var(--bg-surface); // Tự đổi Trắng <-> Đen xám
-    border: 1px solid var(--border-color);
-    color: var(--text-main);
-    transition: all 0.2s ease;
+.stat-card-v2 {
+  position: relative;
+  background: #1a1a1a; // Màu nền tối cho đồng bộ
+  padding: 20px 25px;
+  border-radius: 16px;
+  border: 1px solid #333;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  // Tạo bóng đổ nhẹ để card nổi lên khỏi nền đen
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
 
-    // Hiệu ứng hover dùng biến overlay thông minh của bạn
-    &:hover {
-        transform: translateY(-5px);
-        background: var(--bg-hover);
+  .stat-main-info {
+    .label {
+      color: #666;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 5px;
     }
-
-    // Border trái phân loại (Dùng màu Brand đã định nghĩa)
-    &.category-dien { border-left: 5px solid #ff9800; }
-    &.category-nuoc { border-left: 5px solid var(--brand-primary); }
-    &.category-nguyen-lieu { border-left: 5px solid #4caf50; }
-
-    .title {
-        font-size: 0.875rem;
-        color: var(--text-muted); // Tự đổi Xám đậm <-> Xám nhạt
-        margin-bottom: 0.5rem;
-    }
-
     h3 {
-        font-size: 1.6rem;
-        font-weight: 800; // Làm đậm hơn nữa
-        margin: 8px 0;
-        // Sử dụng biến text-main nhưng ép độ sáng cao hơn trong dark mode
-        color: var(--text-main);
-        letter-spacing: 0.5px;
-        
-        // Hiệu ứng giúp con số "nổi" lên khỏi nền tối
-        text-shadow: 0 0 10px var(--overlay-5); 
+      font-size: 1.5rem;
+      color: #fff;
+      margin: 0;
     }
+  }
 
-    .status {
+  .badge-alert {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: #ff4d4d;
+    color: white;
+    font-size: 0.6rem;
+    font-weight: 900;
+    padding: 4px 8px;
+    border-radius: 4px;
+    box-shadow: 0 4px 10px rgba(255, 77, 77, 0.3);
+  }
+
+  &.over-budget {
+    border-left: 4px solid #ff4d4d;
+    background: linear-gradient(
+      90deg,
+      rgba(255, 77, 77, 0.05) 0%,
+      #1a1a1a 100%
+    );
+    h3 {
+      color: #ff4d4d;
+    }
+  }
+
+  &.near-limit {
+    border-left: 4px solid #f39c12;
+  }
+
+  .stat-budget-info {
+    border-top: 1px solid #222;
+    padding-top: 15px;
+
+    .budget-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      .label {
+        color: #555;
+        font-size: 0.75rem;
+      }
+      .budget-percent {
+        font-weight: 800;
         font-size: 0.85rem;
-        font-weight: 700;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-
-        // Màu đỏ và xanh phải cực kỳ tươi (Vibrant) để nổi trên nền đen
-        &.up { 
-            color: #ff5252; // Red neon
-            filter: drop-shadow(0 0 2px rgba(255, 82, 82, 0.5));
-        }
-        &.down { 
-            color: #69f0ae; // Green neon
-            filter: drop-shadow(0 0 2px rgba(105, 240, 174, 0.5));
-        }
+        color: #fff;
+        font-family: 'Courier New', Courier, monospace;
+      }
     }
+
+    h4 {
+      font-size: 1.1rem;
+      color: #999;
+      margin: 0 0 10px 0;
+    }
+
+    .progress-bar {
+      height: 6px;
+      background: #222;
+      border-radius: 3px;
+      overflow: hidden;
+      .progress-fill {
+        height: 100%;
+        transition: width 0.5s ease;
+      }
+    }
+  }
 }

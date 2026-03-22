@@ -2,6 +2,7 @@ use axum::{extract::State, Json, routing::post, Router};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use crate::AppState;
+use crate::utils::suid::suid;
 
 #[derive(Deserialize)]
 pub struct AuthRequest {
@@ -10,7 +11,7 @@ pub struct AuthRequest {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UserInfo {
-    pub user_id: i32,
+    pub user_id: String, // SỬA: i32 -> String
     pub name: String,
     pub picture: String,
     pub email: String,
@@ -42,18 +43,21 @@ async fn login_google(
     let name = res["name"].as_str().unwrap().to_string();
     let picture = res["picture"].as_str().unwrap().to_string();
 
-    // Upsert User vào DB
-    sqlx::query(
-        "INSERT INTO users (google_id, email, name, picture) VALUES (?, ?, ?, ?) 
-         ON DUPLICATE KEY UPDATE name = ?, picture = ?"
-    )
-    .bind(&google_id).bind(&email).bind(&name).bind(&picture)
-    .bind(&name).bind(&picture)
-    .execute(&state.db).await.unwrap();
-
-    let user_id: i32 = sqlx::query_scalar("SELECT id FROM users WHERE google_id = ?")
+  // Tìm user dựa trên google_id
+    let existing_user: Option<String> = sqlx::query_scalar("SELECT id FROM users WHERE google_id = ?")
         .bind(&google_id)
-        .fetch_one(&state.db).await.unwrap();
+        .fetch_optional(&state.db).await.unwrap_or(None);
 
-    Json(UserInfo { user_id, name, picture, email })
-}
+    let final_user_id = match existing_user {
+        Some(id) => id,
+        None => {
+            // Dùng hàm suid() trong utils của bạn để tạo ID Base64
+            let new_id = crate::utils::suid::suid(); 
+            sqlx::query("INSERT INTO users (id, google_id, email, name, picture) VALUES (?, ?, ?, ?, ?)")
+                .bind(&new_id).bind(&google_id).bind(&email).bind(&name).bind(&picture)
+                .execute(&state.db).await.expect("Lỗi tạo User");
+            new_id
+        }
+    };
+
+    Json(UserInfo { user_id: final_user_id, name, picture, email })}

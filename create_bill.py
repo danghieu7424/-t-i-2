@@ -1,5 +1,6 @@
 from PIL import Image, ImageDraw, ImageFont
 import textwrap
+import os
 
 def create_vietnamese_bill(merchant, amount, date, category, filename):
     # Tạo ảnh nền trắng 500x750 (tăng chiều cao ảnh một chút)
@@ -72,13 +73,14 @@ def create_vietnamese_bill(merchant, amount, date, category, filename):
     # Lời cảm ơn
     draw.text((100, 690), "Cảm ơn Quý khách đã sử dụng dịch vụ!", fill=(100, 100, 100), font=font_reg)
 
-    img.save(filename)
+    os.makedirs("./bill", exist_ok=True)
+    img.save("./bill/" + filename)
     print(f"Đã tạo hóa đơn: {filename}")
 
 # # Tạo mẫu hóa đơn Điện để test
-# create_vietnamese_bill("TỔNG CÔNG TY ĐIỆN LỰC MIỀN BẮC - CHI NHÁNH EVN HÀ NỘI", 534796, "2026-01-20", "Điện", "bill_dien_final.jpg")
-# create_vietnamese_bill("TỔNG CÔNG TY ĐIỆN LỰC MIỀN BẮC - CHI NHÁNH EVN HÀ NỘI", 534796, "2026-01-20", "Điện", "bill_dien_final.jpg")
-# create_vietnamese_bill("TỔNG CÔNG TY ĐIỆN LỰC MIỀN BẮC - CHI NHÁNH EVN HÀ NỘI", 534796, "2026-01-20", "Điện", "bill_dien_final.jpg")
+create_vietnamese_bill("TỔNG CÔNG TY ĐIỆN LỰC MIỀN BẮC - CHI NHÁNH EVN HÀ NỘI", 534796, "2026-01-20", "Điện", "bill_dien_1.jpg")
+create_vietnamese_bill("TỔNG CÔNG TY ĐIỆN LỰC MIỀN BẮC - CHI NHÁNH EVN HÀ NỘI", 514856, "2026-02-20", "Điện", "bill_dien_2.jpg")
+create_vietnamese_bill("TỔNG CÔNG TY ĐIỆN LỰC MIỀN BẮC - CHI NHÁNH EVN HÀ NỘI", 509872, "2026-03-20", "Điện", "bill_dien_3.jpg")
 # Tạo mẫu hóa đơn Nước để test
 create_vietnamese_bill("TỔNG CÔNG TY NƯỚC SẠCH HÀ NỘI", 205716, "2026-01-20", "Nước", "bill_nuoc_1.jpg")
 create_vietnamese_bill("TỔNG CÔNG TY NƯỚC SẠCH HÀ NỘI", 195896, "2026-02-20", "Nước", "bill_nuoc_2.jpg")
