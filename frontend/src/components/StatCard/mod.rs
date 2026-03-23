@@ -44,9 +44,11 @@ pub fn StatCard(
         }
     };
 
-    // Trong StatCard component
-    let progress_color = if progress >= 100.0 {
-        "#ff4d4d" // Đỏ rực khi vượt
+    // Xác định màu sắc thanh Progress theo 3 cấp độ
+    let progress_color = if progress >= 120.0 {
+        "#ff0000" // Đỏ đậm (Crimson) khi vượt quá 20% chỉ tiêu
+    } else if progress >= 100.0 {
+        "#ff4d4d" // Đỏ thường khi vừa vượt ngưỡng
     } else if progress >= 80.0 {
         "#f39c12" // Vàng cam khi sắp chạm mốc
     } else {
@@ -58,30 +60,35 @@ pub fn StatCard(
         progress_color
     );
         
-    let is_up = percent > 0.0; // Xác định tăng hay giảm
-// Xác định các cấp độ cảnh báo
-    let is_over_budget = progress >= 100.0;
-    let is_near_limit = progress >= 80.0 && progress < 100.0;
-
-    // Class động để đổi màu card
+    // Thêm class "critical" nếu vượt quá 120%
+    let is_critical = progress >= 120.0;
     let card_class = format!(
-        "stat-card-v2 category-{} {}", 
+        "stat-card-v2 category-{} {} {}", 
         category_slug,
-        if progress >= 100.0 { "over-budget" } else if progress >= 80.0 { "near-limit" } else { "" }
+        if progress >= 100.0 { "over-budget" } else if progress >= 80.0 { "near-limit" } else { "" },
+        if is_critical { "critical-shake" } else { "" } // Hiệu ứng rung nếu quá 20%
     );
+        
+    let is_up = percent > 0.0; // Xác định tăng hay giảm
 
     view! {
         <div class=card_class>
             {move || {
-                (progress >= 100.0)
-                    .then(|| view! { <span class="badge-alert">"VƯỢT HẠN MỨC!"</span> })
+                if progress >= 120.0 {
+                    view! { <span class="badge-alert critical">"QUÁ 20% HẠN MỨC!"</span> }
+                        .into_view()
+                } else if progress >= 100.0 {
+                    view! { <span class="badge-alert">"VƯỢT HẠN MỨC!"</span> }.into_view()
+                } else {
+                    view! {}.into_view()
+                }
             }} <div class="stat-main-info">
                 <p class="label">{title}</p>
                 <div class="value-group" style="display: flex; align-items: baseline; gap: 10px;">
                     <h3>{amount} " VNĐ"</h3>
                     // Trong view! của StatCard
                     <span
-                        class={ { { { if is_up { "pct up" } else { "pct down" } } } } }
+                        class={ { if is_up { "pct up" } else { "pct down" } } }
                         style=format!(
                             "color: {}; font-weight: bold;",
                             if is_up { "#ff4d4d" } else { "#2ecc71" },
