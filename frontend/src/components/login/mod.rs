@@ -9,10 +9,13 @@ pub fn Login() -> impl IntoView {
 
     create_effect(move |_| {
         let client_id = "382574203305-ud2irfgr6bl243mmq6le9l67e29ire7d.apps.googleusercontent.com";
-        let api_url = format!("{}/api/auth/google", domain); // Dùng domain từ store
+        let api_url = format!("{}/api/auth/google", domain); 
 
         let js = format!(r#"
             window.handleLogin = (res) => {{
+                // BẬT OVERLAY BẰNG JS GỐC
+                document.getElementById('login-loading').style.display = 'flex';
+                
                 fetch('{}', {{
                     method: 'POST',
                     headers: {{ 'Content-Type': 'application/json' }},
@@ -24,6 +27,10 @@ pub fn Login() -> impl IntoView {
                     localStorage.setItem('user_name', user.name);
                     localStorage.setItem('user_pic', user.picture);
                     window.location.href = '/'; 
+                }})
+                .catch(err => {{
+                    document.getElementById('login-loading').style.display = 'none';
+                    alert("Lỗi đăng nhập!");
                 }});
             }};
             google.accounts.id.initialize({{ client_id: "{}", callback: window.handleLogin }});
@@ -36,6 +43,12 @@ pub fn Login() -> impl IntoView {
 
     view! {
         <div class="login-screen">
+            // LỚP PHỦ LOADING BỊ ẨN MẶC ĐỊNH
+            <div id="login-loading" class="global-loading-overlay" style="display: none;">
+                <div class="spinner"></div>
+                <h2>"Đang xác thực bảo mật..."</h2>
+            </div>
+
             <div class="login-card">
                 <div class="logo">"📊"</div>
                 <h1>"AI Expense Manager"</h1>

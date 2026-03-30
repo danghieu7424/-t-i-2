@@ -17,7 +17,7 @@ $warning-color: #e67700;
   margin: 0;
   padding: 0;
   box-sizing: border-box;
-  //   color-scheme: light;
+  color-scheme: dark;
   scrollbar-width: thin;
   scrollbar-color: light-dark(rgba(0, 0, 0, 0.4), rgba(255, 255, 255, 0.4))
     transparent;
@@ -32,3 +32,37 @@ body {
   color: var(--text-main);
 }
 
+// Lớp phủ toàn màn hình, khóa mọi tương tác
+.global-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.85); // Nền đen mờ
+    backdrop-filter: blur(5px);
+    z-index: 9999; // Luôn nằm trên cùng
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    color: #fff;
+    text-align: center;
+
+    h2 { margin-top: 20px; font-size: 1.5rem; font-weight: 600; color: #f1c40f; }
+    p { margin-top: 10px; font-size: 0.9rem; color: #ccc; }
+
+    // Spinner xoay tròn
+    .spinner {
+        width: 60px;
+        height: 60px;
+        border: 5px solid rgba(255, 255, 255, 0.1);
+        border-top-color: #f1c40f; // Màu vàng AI
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

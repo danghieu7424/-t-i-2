@@ -49,3 +49,9 @@ INSERT INTO categories (slug, display_name, icon) VALUES
 ('khac', 'Khác', '❓');
 
 ALTER TABLE budgets ADD UNIQUE KEY `user_category_idx` (`user_id`, `category_slug`);
+
+-- Thêm user_id vào bảng categories
+ALTER TABLE categories ADD COLUMN user_id VARCHAR(255) DEFAULT 'system';
+
+-- Cập nhật UNIQUE KEY để 1 user không bị trùng tên danh mục
+ALTER TABLE categories ADD UNIQUE KEY `user_slug_idx` (`user_id`, `slug`);

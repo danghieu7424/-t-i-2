@@ -40,41 +40,26 @@ aes-gcm = "0.10"
 [dependencies.web-sys]
 version = "0.3"
 features = [
-    # Các thẻ HTML
-    "HtmlVideoElement",
-    "HtmlMediaElement",   # QUAN TRỌNG: Để dùng .play(), .pause(), .duration
-    "HtmlDivElement",
-    "HtmlElement",
-    "HtmlInputElement",
-    "FileList",
-    "File",
-    "FormData",
-    "MediaError",
-    "MediaSourceReadyState",
-    "Storage",   
-    "DragEvent",
-    "DataTransfer",
-    
-    # Các kiểu dữ liệu DOM
-    "Document",
-    "Element",            # QUAN TRỌNG: Để dùng .getBoundingClientRect()
-    "DomRect",            # QUAN TRỌNG: Kiểu trả về của rect
-    "TimeRanges",         # QUAN TRỌNG: Kiểu trả về của .buffered()
-    
-    # Sự kiện
-    "MouseEvent",
-    "Event",
-    "TouchEvent",
-    "TouchList",
-    "Touch",
-
-    # === THÊM MỚI CÁC DÒNG NÀY ===
-    "MediaSource",       # Cần để tạo stream ảo
-    "SourceBuffer",      # Cần để nạp dữ liệu chunk
-    "Url",               # Cần để tạo blob URL
-    "EventTarget",       # Cần để lắng nghe sự kiện
-    "CustomEvent",
-    "Window",
-    "RequestCredentials",
+  "HtmlInputElement",
+  "Window",
+  "Document",
+  "Storage",
+  "FormData",
+  "File",
+  "FileList",
+  "Event",
+  "DragEvent",
+  "DataTransfer",
+  "Location",
+  "Navigator",
+  "MediaDevices",
+  "MediaStreamConstraints",
+  "MediaStream",
+  "MediaStreamTrack",
+  "HtmlVideoElement",
+  "HtmlCanvasElement",
+  "CanvasRenderingContext2d",
+  "Blob",
+  "FilePropertyBag"
 ]
 
