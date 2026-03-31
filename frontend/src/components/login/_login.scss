@@ -15,6 +15,12 @@
         max-width: 400px;
         width: 90%;
 
+        @media (max-width: 480px) {
+            padding: 2rem 1.5rem; // Giảm khoảng cách trong
+            .logo { font-size: 3rem; }
+            h1 { font-size: 1.5rem; }
+        }
+
         .logo { font-size: 4rem; margin-bottom: 1rem; }
         h1 { color: #fff; margin-bottom: 0.5rem; font-size: 1.8rem; }
         p { color: #888; margin-bottom: 2rem; }

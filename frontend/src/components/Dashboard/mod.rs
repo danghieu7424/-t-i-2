@@ -138,27 +138,87 @@ pub fn Dashboard() -> impl IntoView {
         set_is_camera_open.set(true);
         set_camera_error.set(String::new());
         spawn_local(async move {
-            let window = web_sys::window().unwrap();
-            let navigator = window.navigator();
-            let media_devices = match navigator.media_devices() {
-                Ok(md) => md,
-                Err(_) => { set_camera_error.set("Trình duyệt không hỗ trợ!".to_string()); return; }
-            };
-            
-            let constraints = web_sys::MediaStreamConstraints::new();
-            constraints.set_video(&wasm_bindgen::JsValue::TRUE);
-            
-            match media_devices.get_user_media_with_constraints(&constraints) {
-                Ok(promise) => {
-                    if let Ok(stream) = wasm_bindgen_futures::JsFuture::from(promise).await {
-                        let media_stream: web_sys::MediaStream = stream.unchecked_into();
+            // Dùng JS ngầm để tự động quét và lọc camera siêu rộng
+            let js_code = r#"
+                (async function() {
+                    let stream;
+                    try { stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }); } 
+                    catch(e) { stream = await navigator.mediaDevices.getUserMedia({ video: true }); }
+                    
+                    let devices = await navigator.mediaDevices.enumerateDevices();
+                    window.vi_list = devices.filter(d => d.kind === 'videoinput');
+                    
+                    let track = stream.getVideoTracks()[0];
+                    window.vi_idx = window.vi_list.findIndex(d => d.label === track.label);
+                    if (window.vi_idx === -1) window.vi_idx = 0;
+
+                    let lbl = track.label.toLowerCase();
+                    // Nếu dính ống kính siêu rộng hoặc macro -> Tự động ép về cam thường
+                    if (window.vi_list.length > 1 && (lbl.includes('ultra') || lbl.includes('macro') || lbl.includes('wide'))) {
+                        let stdIdx = window.vi_list.findIndex(d => {
+                            let l = d.label.toLowerCase();
+                            return (l.includes('back') || l.includes('sau')) && !l.includes('ultra') && !l.includes('macro') && !l.includes('wide');
+                        });
+                        if (stdIdx !== -1) {
+                            track.stop();
+                            window.vi_idx = stdIdx;
+                            stream = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: window.vi_list[stdIdx].deviceId } } });
+                        }
+                    }
+                    return stream;
+                })()
+            "#;
+
+            if let Ok(promise) = js_sys::eval(js_code) {
+                let future = wasm_bindgen_futures::JsFuture::from(promise.unchecked_into::<js_sys::Promise>());
+                if let Ok(js_stream) = future.await {
+                    let media_stream: web_sys::MediaStream = js_stream.unchecked_into();
+                    if let Some(video) = video_ref.get() {
+                        video.set_src_object(Some(&media_stream));
+                        let _ = video.play().unwrap();
+                    }
+                } else {
+                    set_camera_error.set("Quyền Camera bị từ chối!".to_string());
+                }
+            } else { set_camera_error.set("Lỗi trình duyệt!".to_string()); }
+        });
+    };
+
+    // THÊM BIẾN MỚI: Xử lý nút bấm xoay vòng các ống kính
+    let switch_lens = move |_| {
+        spawn_local(async move {
+            let js_code = r#"
+                (async function() {
+                    if (!window.vi_list || window.vi_list.length < 2) return null;
+                    window.vi_idx = (window.vi_idx + 1) % window.vi_list.length; // Chuyển sang cam tiếp theo
+                    let targetCam = window.vi_list[window.vi_idx];
+                    return await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: targetCam.deviceId } } });
+                })()
+            "#;
+
+            // Tắt ống kính cũ trước khi mở ống kính mới
+            if let Some(video) = video_ref.get() {
+                if let Some(stream) = video.src_object() {
+                    let media_stream: web_sys::MediaStream = stream.unchecked_into();
+                    let tracks = media_stream.get_tracks();
+                    for i in 0..tracks.length() {
+                        let track: web_sys::MediaStreamTrack = tracks.get(i).unchecked_into();
+                        track.stop();
+                    }
+                }
+            }
+
+            if let Ok(val) = js_sys::eval(js_code) {
+                if !val.is_null() {
+                    let promise = val.unchecked_into::<js_sys::Promise>();
+                    if let Ok(js_value) = wasm_bindgen_futures::JsFuture::from(promise).await {
+                        let media_stream: web_sys::MediaStream = js_value.unchecked_into();
                         if let Some(video) = video_ref.get() {
                             video.set_src_object(Some(&media_stream));
                             let _ = video.play().unwrap();
                         }
-                    } else { set_camera_error.set("Từ chối quyền Camera!".to_string()); }
-                },
-                Err(_) => { set_camera_error.set("Không tìm thấy thiết bị!".to_string()); }
+                    }
+                }
             }
         });
     };
@@ -294,9 +354,20 @@ pub fn Dashboard() -> impl IntoView {
                                     };
                                     let is_total_up = total_diff_pct > 0.0;
                                     let total_budget: f64 = d.stats.iter().map(|s| s.budget).sum();
+                                    let has_budget = total_budget > 0.0;
+                                    let budget_diff_pct = if has_budget {
+                                        ((current_total - total_budget) / total_budget) * 100.0
+                                    } else {
+                                        0.0
+                                    };
+                                    let is_over_budget = budget_diff_pct > 0.0;
+                                    // --- 1. TÍNH TOÁN SO VỚI THÁNG TRƯỚC ---
+
+                                    // --- 2. LOGIC MỚI: TÍNH TOÁN SO VỚI TỔNG NGÂN SÁCH ---
 
                                     view! {
                                         <div class="month-summary-header">
+                                            // KHỐI 1: TỔNG CHI THÁNG NÀY
                                             <div class="summary-item">
                                                 <span class="label">"Tổng chi tháng này"</span>
                                                 <div class="value-row">
@@ -317,12 +388,81 @@ pub fn Dashboard() -> impl IntoView {
                                                     " VNĐ"
                                                 </p>
                                             </div>
+
                                             <div class="summary-item divider"></div>
+
+                                            // KHỐI 2: TỔNG NGÂN SÁCH VÀ CẢNH BÁO
                                             <div class="summary-item">
                                                 <span class="label">"Ngân sách kế hoạch"</span>
-                                                <h2 class="budget-value">
-                                                    {format_thousands(total_budget)} " VNĐ"
-                                                </h2>
+                                                <div class="value-row" style="margin-bottom: 6px;">
+                                                    // Số tiền chính đứng 1 mình 1 dòng
+                                                    <h2 class="budget-value">
+                                                        {format_thousands(total_budget)} " VNĐ"
+                                                    </h2>
+                                                </div>
+
+                                                // Gom Badge và Text phụ đề vào một hàng ngang
+                                                <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                                                    {if has_budget {
+                                                        view! {
+                                                            <span
+                                                                class=if is_over_budget {
+                                                                    "pct-badge up"
+                                                                } else {
+                                                                    "pct-badge down"
+                                                                }
+                                                                style="white-space: nowrap; padding: 4px 10px; font-size: 0.8rem;"
+                                                            >
+                                                                {if is_over_budget {
+                                                                    "⚠️ Vượt "
+                                                                } else {
+                                                                    "✅ Dư "
+                                                                }}
+                                                                {format!("{:.1}%", budget_diff_pct.abs())}
+                                                            </span>
+                                                        }
+                                                            .into_view()
+                                                    } else {
+                                                        view! {
+                                                            <span
+                                                                class="pct-badge"
+                                                                style="background: #333; color: #888; white-space: nowrap; padding: 4px 10px; font-size: 0.8rem;"
+                                                            >
+                                                                "Chưa đặt"
+                                                            </span>
+                                                        }
+                                                            .into_view()
+                                                    }}
+                                                    // Bỏ margin-top dư thừa, dùng margin: 0 vì Flexbox gap đã lo khoảng cách
+                                                    <p
+                                                        class="prev-label"
+                                                        style=if has_budget {
+                                                            if is_over_budget {
+                                                                "margin: 0; font-weight: 600; color: #ff4d4d;"
+                                                            } else {
+                                                                "margin: 0; font-weight: 600; color: #2ecc71;"
+                                                            }
+                                                        } else {
+                                                            "margin: 0; color: #888;"
+                                                        }
+                                                    >
+                                                        {if has_budget {
+                                                            if is_over_budget {
+                                                                format!(
+                                                                    "🔻 Tiêu lố: {} VNĐ",
+                                                                    format_thousands(current_total - total_budget),
+                                                                )
+                                                            } else {
+                                                                format!(
+                                                                    "✨ Có thể tiêu: {} VNĐ",
+                                                                    format_thousands(total_budget - current_total),
+                                                                )
+                                                            }
+                                                        } else {
+                                                            "Hãy thiết lập ở thẻ bên dưới".to_string()
+                                                        }}
+                                                    </p>
+                                                </div>
                                             </div>
                                         </div>
                                     }
@@ -615,6 +755,16 @@ pub fn Dashboard() -> impl IntoView {
                                     >
                                         "📸 Bấm Chụp"
                                     </button>
+
+                                    // GIAO DIỆN NÚT CHUYỂN CAM CHUYÊN NGHIỆP
+                                    <button
+                                        class="btn-action"
+                                        style="background: #3498db; color: #fff;"
+                                        on:click=switch_lens.clone()
+                                    >
+                                        "🔄 Đổi ống kính"
+                                    </button>
+
                                     <button
                                         class="btn-action"
                                         style="background: #ff4d4d; color: #fff;"

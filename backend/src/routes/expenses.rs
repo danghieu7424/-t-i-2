@@ -1,6 +1,7 @@
 use axum::{
     extract::{Multipart, State, Query, Path}, 
     routing::{get, post, delete},
+    response::IntoResponse,
     Json, Router,
 };
 use serde::{Deserialize, Serialize};
@@ -226,7 +227,7 @@ async fn get_dashboard_data(
     })
 }
 
-async fn upload_invoice(State(state): State<Arc<AppState>>, mut multipart: Multipart) -> Json<Expense> {
+async fn upload_invoice(State(state): State<Arc<AppState>>, mut multipart: Multipart) -> impl axum::response::IntoResponse {
     let mut image_data = Vec::new();
     let mut user_id = String::new();
 
@@ -274,7 +275,10 @@ async fn upload_invoice(State(state): State<Arc<AppState>>, mut multipart: Multi
     let res_json = response.json::<serde_json::Value>().await.unwrap();
 
     if !status.is_success() {
-        return Json(Expense { id: None, user_id, merchant: "Lỗi API".into(), bill_date: None, amount: 0.0, category: "khac".into(), is_warning: false });
+        return (
+            axum::http::StatusCode::INTERNAL_SERVER_ERROR, 
+            "Lỗi API Gemini. Vui lòng kiểm tra lại GEMINI_API_KEY trong file .env!"
+        ).into_response();
     }
 
     let ai_text = res_json["candidates"][0]["content"]["parts"][0]["text"].as_str().unwrap_or("");
@@ -313,5 +317,5 @@ async fn upload_invoice(State(state): State<Arc<AppState>>, mut multipart: Multi
     .bind(&user_id).bind(&m).bind(&d).bind(a).bind(&c).bind(warn).bind(&items_str)
     .execute(&state.db).await.expect("Lỗi Insert DB");
 
-    Json(Expense { id: Some(result.last_insert_id() as i32), user_id, merchant: m, bill_date: Some(d), amount: a, category: c, is_warning: warn })
+    Json(Expense { id: Some(result.last_insert_id() as i32), user_id, merchant: m, bill_date: Some(d), amount: a, category: c, is_warning: warn }).into_response()
 }

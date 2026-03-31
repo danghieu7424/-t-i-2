@@ -9,11 +9,20 @@
     top: 0;
     z-index: 1000;
 
+    @media (max-width: 768px) {
+        padding: 0.8rem 1rem; // Ép sát lề điện thoại
+    }
+
     .nav-left {
         display: flex;
         align-items: center;
         gap: 12px;
         cursor: pointer;
+
+        @media (max-width: 480px) {
+            .logo-text { font-size: 1rem; } // Chữ nhỏ lại
+        }
+
         .logo-icon { font-size: 1.8rem; }
         .logo-text { 
             font-weight: 900; 
@@ -28,12 +37,20 @@
         align-items: center;
         gap: 25px;
 
+        @media (max-width: 768px) { gap: 10px; }
+
         .user-info {
             display: flex;
             align-items: center;
             gap: 12px;
             padding-right: 20px;
             border-right: 1px solid #333;
+
+            @media (max-width: 768px) {
+                padding-right: 10px;
+                // FIX BLIND SPOT 3: Ẩn tên User, chỉ để Avatar trên điện thoại bé
+                .user-name { display: none; } 
+            }
 
             .user-name { 
                 color: #efefef; 
@@ -62,6 +79,12 @@
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s ease;
+
+            @media (max-width: 768px) {
+                padding: 6px 10px;
+                font-size: 0.75rem;
+                gap: 4px;
+            }
 
             &:hover {
                 background: #ff4d4d;
