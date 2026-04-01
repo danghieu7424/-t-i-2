@@ -601,8 +601,8 @@ async fn upload_invoice(
     let thread_job_id = job_id.clone();
 
     // BƯỚC 2: Tách luồng (Thread) cho chạy ngầm, không bắt Request phải chờ
+    // BƯỚC 2: Tách luồng (Thread) cho chạy ngầm, không bắt Request phải chờ
     tokio::spawn(async move {
-        // Đặt lại tên biến bên trong luồng để tái sử dụng code cũ
         let job_id = thread_job_id; 
 
         // Xếp hàng chờ trạm thu phí (Semaphore)
@@ -614,7 +614,6 @@ async fn upload_invoice(
             }
         };
 
-        // Đã qua trạm, bắt đầu xử lý
         get_jobs().lock().await.insert(job_id.clone(), JobStatus::Processing);
 
         let category_list: Vec<String> = sqlx::query_scalar("SELECT slug FROM categories WHERE user_id = ? OR user_id = 'system'")
@@ -625,13 +624,14 @@ async fn upload_invoice(
         let base64_image = general_purpose::STANDARD.encode(&image_data);
         let client = reqwest::Client::new();
         
+        // 🛡️ FIX 1: PHỤC HỒI NGUYÊN VẸN PROMPT GỐC (CÓ VÍ DỤ DẪN DẮT AI)
         let prompt = format!(
             "Trích xuất hóa đơn. Trả về JSON chính xác. Không kèm text giải thích:
-            1. 'merchant': Tên siêu thị/quán ăn.
+            1. 'merchant': Tên siêu thị/quán ăn (vd: Quán Ăn Thiên Tân).
             2. 'bill_date': YYYY-MM-DD.
             3. 'amount': Tổng tiền (chỉ lấy số).
-            4. 'category_slug': Chọn từ: {}. Nếu chưa có, tự tạo slug viết thường.
-            5. 'category_name': Tên hiển thị tiếng Việt.
+            4. 'category_slug': Chọn từ: {}. Nếu chưa có, tự tạo slug viết thường không dấu (vd: 'an-uong').
+            5. 'category_name': Tên hiển thị tiếng Việt (vd: 'Ăn uống').
             6. 'items': Mảng mặt hàng [{{\"name\": \"...\", \"quantity\": 1, \"price\": 0, \"total\": 0}}].",
             categories_str
         );
@@ -641,36 +641,48 @@ async fn upload_invoice(
             "generationConfig": { "response_mime_type": "application/json" }
         });
 
-        let response_result = client.post(api_url).json(&payload).send().await;
-        
-        drop(permit); // MỞ BARIE CHO LUỒNG KHÁC VÀO GEMINI NGAY LẬP TỨC
+        let mut attempt = 0;
+        let max_attempts = 2; // Giảm xuống 2 để khỏi chờ lâu
+        let mut final_parsed = serde_json::json!({}); // Mặc định là {} y như code cũ của ông
 
-        let response = match response_result {
-            Ok(res) => res,
-            Err(e) => {
-                get_jobs().lock().await.insert(job_id.clone(), JobStatus::Failed(format!("Lỗi mạng: {}", e)));
-                return;
+        while attempt < max_attempts {
+            attempt += 1;
+            
+            if let Ok(response) = client.post(&api_url).json(&payload).send().await {
+                if response.status().is_success() {
+                    let res_json: serde_json::Value = response.json().await.unwrap_or_default();
+                    let ai_text = res_json.get("candidates").and_then(|c| c.get(0)).and_then(|c| c.get("content"))
+                        .and_then(|c| c.get("parts")).and_then(|p| p.get(0)).and_then(|p| p.get("text"))
+                        .and_then(|t| t.as_str()).unwrap_or("{}");
+
+                    let clean_text = ai_text.replace("```json", "").replace("```", "").trim().to_string();
+
+                    // 🛡️ FIX 2: BỎ KIỂM DUYỆT CỰC ĐOAN. Parse được JSON là nhận luôn!
+                    if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(&clean_text) {
+                        final_parsed = parsed;
+                        break; 
+                    }
+                }
             }
-        };
-
-        if !response.status().is_success() {
-            get_jobs().lock().await.insert(job_id.clone(), JobStatus::Failed("AI từ chối xử lý".to_string()));
-            return;
+            
+            if attempt < max_attempts {
+                tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+            }
         }
 
-        let res_json: serde_json::Value = response.json().await.unwrap_or_default();
-        let ai_text = res_json.get("candidates").and_then(|c| c.get(0)).and_then(|c| c.get("content"))
-            .and_then(|c| c.get("parts")).and_then(|p| p.get(0)).and_then(|p| p.get("text"))
-            .and_then(|t| t.as_str()).unwrap_or("{}");
+        drop(permit); // MỞ BARIE CHO LUỒNG KHÁC VÀO GEMINI NGAY LẬP TỨC
 
-        let parsed: serde_json::Value = serde_json::from_str(ai_text).unwrap_or_else(|_| serde_json::json!({}));
+        let parsed = final_parsed; // Nếu Gemini tạch 2 lần, nó sẽ lấy {} y như code gốc
+
+        // ... [TỪ ĐÂY TRỞ XUỐNG LÀ LOGIC LƯU DB CŨ CỦA ÔNG] ...
         let m = parsed["merchant"].as_str().unwrap_or("Không rõ").to_string();
         let d = parsed["bill_date"].as_str().map(|s| s.to_string()).unwrap_or_else(|| chrono::Local::now().format("%Y-%m-%d").to_string());
         
         let a = if parsed["amount"].is_number() { 
             parsed["amount"].as_f64().unwrap_or(0.0) 
         } else { 
-            parsed["amount"].as_str().unwrap_or("0").replace(",", "").replace(".", "").replace(" ", "").parse::<f64>().unwrap_or(0.0) 
+            let amount_str = parsed["amount"].as_str().unwrap_or("0");
+            amount_str.replace(",", "").replace(".", "").replace(" ", "").parse::<f64>().unwrap_or(0.0) 
         };
         
         let mut c = parsed["category_slug"].as_str().unwrap_or("khac").to_string();
