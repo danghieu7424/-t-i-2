@@ -17,6 +17,8 @@ use std::fs;
 use std::path::Path;
 use p256::{ SecretKey, elliptic_curve::sec1::ToEncodedPoint };
 use hex;
+use tokio::sync::Semaphore;
+use std::sync::Arc;
 
 // 1. Khai báo và Import Module Route
 mod utils;
@@ -28,6 +30,7 @@ use routes::{ auth, expenses }; // <-- SỬA: Thêm crypto
 #[derive(Clone)]
 pub struct AppState {
     pub db: MySqlPool,
+    pub gemini_semaphore: Arc<Semaphore>,
 }
 
 // Lưu ý: User struct đã được chuyển sang src/routes/user.rs để giữ main.rs gọn gàng.
@@ -119,6 +122,7 @@ async fn main() {
     // Lưu vào AppState
     let state = AppState {
         db: pool,
+        gemini_semaphore: Arc::new(Semaphore::new(3)),
     };
 
     // Cấu hình CORS (Đã sửa lỗi allow_any_origin)

@@ -38,6 +38,8 @@ pub struct DashboardData {
     pub chart_series: Vec<ChartSeries>, 
     pub stats: Vec<StatItem>,
     pub recent_expenses: Vec<RecentExpense>,
+    pub current_page: u32, 
+    pub total_pages: u32,  
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -70,6 +72,19 @@ fn format_thousands(n: f64) -> String {
     result
 }
 
+// 🛡️ CẢNH SÁT CHÌM: Quét lỗi Token Hết Hạn
+fn check_auth_error(status: u16) -> bool {
+    if status == 401 {
+        let window = web_sys::window().unwrap();
+        window.local_storage().unwrap().unwrap().clear();
+        let _ = window.alert_with_message("Phiên đăng nhập đã hết hạn! Vui lòng đăng nhập lại để bảo mật.");
+        let _ = window.location().set_href("/login");
+        true
+    } else {
+        false
+    }
+}
+
 fn get_color_from_string(s: &str) -> String {
     let palette = [
         "#f1c40f", "#3498db", "#2ecc71", "#e74c3c", "#9b59b6", 
@@ -82,7 +97,6 @@ fn get_color_from_string(s: &str) -> String {
     palette[hash].to_string()
 }
 
-// Hàm loại bỏ dấu tiếng Việt để Search thông minh hơn
 fn remove_accents(s: &str) -> String {
     s.to_lowercase()
      .replace(['á','à','ả','ã','ạ','ă','ắ','ằ','ẳ','ẵ','ặ','â','ấ','ầ','ẩ','ẫ','ậ'], "a")
@@ -116,7 +130,6 @@ pub fn Dashboard() -> impl IntoView {
         format!("{}-{:02}-{:02}", year, month, day) 
     });
 
-    // STATE DÀNH CHO EDIT MODAL
     let (edit_modal_open, set_edit_modal_open) = create_signal(false);
     let (edit_id, set_edit_id) = create_signal(0);
     let (edit_merchant, set_edit_merchant) = create_signal(String::new());
@@ -133,73 +146,136 @@ pub fn Dashboard() -> impl IntoView {
         let year = date.get_full_year();
         format!("{}-{:02}", year, month) 
     });
+
+    let (current_page, set_current_page) = create_signal(1u32);
+
+    create_effect(move |_| {
+        let _ = selected_month.get();
+        set_current_page.set(1);
+    });
     
     let (is_camera_open, set_is_camera_open) = create_signal(false);
     let (camera_error, set_camera_error) = create_signal(String::new());
     let video_ref = create_node_ref::<html::Video>();
     let canvas_ref = create_node_ref::<html::Canvas>();
 
+    // API 1: LOAD SUBSCRIPTIONS
     let load_subs = move || {
         let dom = api_domain.get_value();
         spawn_local(async move {
             let storage = window().local_storage().unwrap().unwrap();
             let uid = storage.get_item("user_id").ok().flatten().unwrap_or_else(|| "1".into());
+            let token = storage.get_item("auth_token").ok().flatten().unwrap_or_default();
             let url = format!("{}/api/expenses/subscriptions?user_id={}", dom, uid);
-            if let Ok(res) = gloo_net::http::Request::get(&url).send().await {
-                if let Ok(data) = res.json::<Vec<Subscription>>().await {
+            
+            let res = gloo_net::http::Request::get(&url)
+                .header("Authorization", &format!("Bearer {}", token))
+                .send().await;
+            
+            // Fix chuẩn:
+            if let Ok(response) = res {
+                if check_auth_error(response.status()) { return; }
+                if let Ok(data) = response.json::<Vec<Subscription>>().await {
                     set_active_subs.set(data);
                 }
             }
         });
     };
 
-    // BỔ SUNG ĐOẠN NÀY ĐỂ UI TỰ TẢI DANH SÁCH KHI MỞ TAB "ĐỊNH KỲ"
     create_effect(move |_| {
         if input_mode.get() == "sub" {
             load_subs();
         }
     });
 
+    // API 2: LOAD DASHBOARD DATA
     let dash_resource = create_resource(
-        move || selected_month.get(), 
-        move |month| {
+        move || (selected_month.get(), current_page.get()), 
+        move |(month, page)| {
             let domain = domain.clone();
             async move {
                 let storage = window().local_storage().unwrap().unwrap();
-                let user_id = storage.get_item("user_id").ok().flatten().unwrap_or_else(|| "1".to_string());
-                let url = format!("{}/api/expenses?user_id={}&month={}", domain, user_id, month);   
-                gloo_net::http::Request::get(&url).send().await.unwrap().json::<DashboardData>().await.unwrap_or_default()
+                let token = storage.get_item("auth_token").ok().flatten().unwrap_or_default();
+                let url = format!("{}/api/expenses?month={}&page={}&limit=20", domain, month, page);   
+                
+                let res = gloo_net::http::Request::get(&url)
+                    .header("Authorization", &format!("Bearer {}", token))
+                    .send().await;
+                
+                // Fix chuẩn:
+                if let Ok(response) = res {
+                    if check_auth_error(response.status()) { return DashboardData::default(); }
+                    response.json::<DashboardData>().await.unwrap_or_default()
+                } else {
+                    DashboardData::default()
+                }
             }
         }
     );
 
+    // API 3: UPLOAD INVOICE
+    // API 3: UPLOAD INVOICE (LONG POLLING BACKGROUND JOB)
     let upload_action = move |file: web_sys::File| {
+        if is_uploading.get() { return; } 
         set_is_uploading.set(true); 
+        
         let domain_url = api_domain.get_value();
         let url = format!("{}/api/expenses/upload", domain_url);
         
         spawn_local(async move {
             let window = web_sys::window().unwrap();
             let storage = window.local_storage().unwrap().unwrap();
-            let user_id = storage.get_item("user_id").ok().flatten().unwrap_or_else(|| "1".to_string());
+            let token = storage.get_item("auth_token").ok().flatten().unwrap_or_default();
             
             let form_data = web_sys::FormData::new().unwrap();
             form_data.append_with_blob("file", &file).unwrap();
-            form_data.append_with_str("user_id", &user_id).unwrap(); 
 
-            // PHỤC HỒI LẠI LỆNH GỌI API ĐÚNG CHO TÍNH NĂNG UPLOAD ẢNH
+            // 1. Gửi file lên và lấy Job ID ngay lập tức
             let res = gloo_net::http::Request::post(&url)
-                .body(form_data)
-                .unwrap()
-                .send()
-                .await;
+                .header("Authorization", &format!("Bearer {}", token))
+                .body(form_data).unwrap().send().await;
             
-            set_is_uploading.set(false);
-            if res.is_ok() && res.unwrap().status() == 200 {
-                dash_resource.refetch();
-                let _ = window.alert_with_message("Quét hóa đơn bằng AI thành công!");
+            if let Ok(response) = res {
+                if check_auth_error(response.status()) { set_is_uploading.set(false); return; }
+                if response.status() == 200 {
+                    let data: serde_json::Value = response.json().await.unwrap();
+                    if let Some(job_id) = data["job_id"].as_str() {
+                        let job_id = job_id.to_string();
+                        
+                        // 2. VÒNG LẶP POLLING TÌM KẾT QUẢ
+                        loop {
+                            // Nghỉ 2 giây để không spam Server
+                            let _ = gloo_timers::future::TimeoutFuture::new(2000).await;
+                            
+                            let status_url = format!("{}/api/expenses/upload/status/{}", domain_url, job_id);
+                            if let Ok(status_res) = gloo_net::http::Request::get(&status_url)
+                                .header("Authorization", &format!("Bearer {}", token))
+                                .send().await 
+                            {
+                                if let Ok(status_data) = status_res.json::<serde_json::Value>().await {
+                                    let state_str = status_data["state"].as_str().unwrap_or("");
+                                    
+                                    if state_str == "Completed" {
+                                        dash_resource.refetch();
+                                        set_is_uploading.set(false);
+                                        break; // Thoát vòng lặp
+                                    } else if state_str == "Failed" {
+                                        set_is_uploading.set(false);
+                                        let err = status_data["error"].as_str().unwrap_or("Lỗi không xác định");
+                                        let _ = window.alert_with_message(&format!("❌ Lỗi AI: {}", err));
+                                        break; // Thoát vòng lặp
+                                    }
+                                    // Nếu là Pending hoặc Processing -> im lặng lặp tiếp
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    set_is_uploading.set(false);
+                    let _ = window.alert_with_message("Lỗi đẩy hóa đơn lên Server!");
+                }
             } else {
-                let _ = window.alert_with_message("Lỗi phân tích hóa đơn từ AI!");
+                set_is_uploading.set(false);
             }
         });
     };
@@ -214,6 +290,7 @@ pub fn Dashboard() -> impl IntoView {
     let on_drop = move |ev: ev::DragEvent| {
         ev.prevent_default();
         set_is_dragging.set(false);
+        if is_uploading.get() { return; } 
         let web_ev: &web_sys::DragEvent = ev.as_ref();
         if let Some(dt) = web_ev.data_transfer() {
             if let Some(files) = dt.files() {
@@ -326,6 +403,7 @@ pub fn Dashboard() -> impl IntoView {
     let close_camera = move |_| { stop_camera(); };
 
     let capture_photo = move |_| {
+        if is_uploading.get() { return; } 
         if let (Some(video), Some(canvas)) = (video_ref.get(), canvas_ref.get()) {
             let context = canvas.get_context("2d").unwrap().unwrap().unchecked_into::<web_sys::CanvasRenderingContext2d>();
             let width = video.video_width() as u32;
@@ -351,13 +429,9 @@ pub fn Dashboard() -> impl IntoView {
     create_effect(move |_| {
         if let Some(d) = dash_resource.get() {
             let series_json = serde_json::to_string(&d.chart_series).unwrap_or_else(|_| "[]".to_string());
-            
-            // Lấy thêm mảng stats để vẽ biểu đồ cơ cấu
             let stats_json = serde_json::to_string(&d.stats).unwrap_or_else(|_| "[]".to_string());
 
-            // FIX LỖI BLIND SPOT: Đổi r#" thành r##" để chuỗi không bị ngắt sớm bởi "#7f8c8d"
             let js_code = format!(r##"
-                // 1. VẼ LINE CHART (Giữ nguyên đồng bộ màu)
                 let lineCanvas = document.getElementById('payment-chart-canvas');
                 if (lineCanvas) {{
                     let oldLine = Chart.getChart(lineCanvas); if(oldLine) oldLine.destroy();
@@ -391,7 +465,6 @@ pub fn Dashboard() -> impl IntoView {
                     }});
                 }}
 
-                // 2. VẼ DOUGHNUT CHART MỚI VỚI THUẬT TOÁN "GỘP VỤN" VÀ "ZERO-STATE"
                 let pieCanvas = document.getElementById('proportion-chart-canvas');
                 if (pieCanvas) {{
                     let oldPie = Chart.getChart(pieCanvas); if(oldPie) oldPie.destroy();
@@ -408,19 +481,16 @@ pub fn Dashboard() -> impl IntoView {
                     if (totalAmount === 0) {{
                         pieLabels = ["Chưa có dữ liệu"];
                         pieData = [1];
-                        pieColors = ['#333333']; // Xám tối cho ngày đầu tháng
+                        pieColors = ['#333333']; 
                     }} else {{
                         rawStats.forEach(item => {{
                             if (item.amount > 0) {{
                                 let percentage = (item.amount / totalAmount) * 100;
-                                // Khắc phục Blind Spot: Gom các mục < 3%
                                 if (percentage < 3) {{ 
                                     otherAmount += item.amount;
                                 }} else {{
                                     pieLabels.push(item.title);
                                     pieData.push(item.amount);
-
-                                    // Lấy màu băm đồng bộ 100% với Line Chart và StatCard
                                     let hash = 0;
                                     for (let i = 0; i < item.title.length; i++) {{
                                         hash = (hash + item.title.charCodeAt(i)) % colorPalette.length;
@@ -433,7 +503,7 @@ pub fn Dashboard() -> impl IntoView {
                         if (otherAmount > 0) {{
                             pieLabels.push("Khác (Các mục <3%)");
                             pieData.push(otherAmount);
-                            pieColors.push("#7f8c8d"); // Màu xám nhạt cho mục Gộp
+                            pieColors.push("#7f8c8d");
                         }}
                     }}
 
@@ -450,7 +520,7 @@ pub fn Dashboard() -> impl IntoView {
                         }},
                         options: {{
                             maintainAspectRatio: false,
-                            cutout: '70%', // Tạo độ rỗng ở giữa cho thanh thoát
+                            cutout: '70%', 
                             plugins: {{
                                 legend: {{ 
                                     position: 'right', 
@@ -470,7 +540,7 @@ pub fn Dashboard() -> impl IntoView {
                         }}
                     }});
                 }}
-            "##, series_json, d.month_labels, stats_json); // Đóng chuỗi bằng "##
+            "##, series_json, d.month_labels, stats_json); 
             let _ = js_sys::eval(&js_code);
         }
     });
@@ -484,7 +554,6 @@ pub fn Dashboard() -> impl IntoView {
                 </div>
             </Show>
 
-            // MODAL CHỈNH SỬA GIAO DỊCH
             // MODAL CHỈNH SỬA GIAO DỊCH
             <Show when=move || edit_modal_open.get()>
                 <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 9999;">
@@ -551,7 +620,6 @@ pub fn Dashboard() -> impl IntoView {
                                 </div>
                             </div>
 
-                            // KHU VỰC SỬA DANH SÁCH MẶT HÀNG DYNAMIC
                             <div style="margin-top: 10px; background: #111; padding: 15px; border-radius: 8px; border: 1px solid #333;">
                                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                                     <label style="color: #fff; font-size: 0.9rem; font-weight: bold; margin: 0;">
@@ -660,6 +728,7 @@ pub fn Dashboard() -> impl IntoView {
                             <div style="display: flex; gap: 10px; margin-top: 15px;">
                                 <button
                                     style="flex: 1; padding: 12px; border-radius: 6px; background: #3498db; color: #fff; border: none; font-weight: bold; cursor: pointer; font-size: 1rem;"
+                                    disabled=move || is_uploading.get()
                                     on:click=move |_| {
                                         set_is_uploading.set(true);
                                         let domain_url = api_domain.get_value();
@@ -689,6 +758,11 @@ pub fn Dashboard() -> impl IntoView {
                                                 .ok()
                                                 .flatten()
                                                 .unwrap_or_else(|| "1".to_string());
+                                            let token = storage
+                                                .get_item("auth_token")
+                                                .ok()
+                                                .flatten()
+                                                .unwrap_or_default();
                                             let req = serde_json::json!(
                                                 {
                                                 "id": id,
@@ -703,25 +777,38 @@ pub fn Dashboard() -> impl IntoView {
                                             let res = gloo_net::http::Request::put(
                                                     &format!("{}/api/expenses/edit", domain_url),
                                                 )
+                                                .header("Authorization", &format!("Bearer {}", token))
                                                 .json(&req)
                                                 .unwrap()
                                                 .send()
                                                 .await;
                                             set_is_uploading.set(false);
                                             set_edit_modal_open.set(false);
-                                            if res.is_ok() && res.unwrap().status() == 200 {
-                                                dash_resource.refetch();
-                                            } else {
-                                                let _ = window
-                                                    .alert_with_message("Lỗi khi cập nhật giao dịch!");
+                                            if let Ok(response) = res {
+                                                if check_auth_error(response.status()) {
+                                                    return;
+                                                }
+                                                if response.status() == 200 {
+                                                    dash_resource.refetch();
+                                                } else {
+                                                    let _ = window
+                                                        .alert_with_message("Lỗi khi cập nhật giao dịch!");
+                                                }
                                             }
                                         });
                                     }
                                 >
-                                    "Lưu thay đổi"
+                                    {move || {
+                                        if is_uploading.get() {
+                                            "Đang lưu..."
+                                        } else {
+                                            "Lưu thay đổi"
+                                        }
+                                    }}
                                 </button>
                                 <button
                                     style="flex: 1; padding: 12px; border-radius: 6px; background: #444; color: #fff; border: none; font-weight: bold; cursor: pointer; font-size: 1rem;"
+                                    disabled=move || is_uploading.get()
                                     on:click=move |_| set_edit_modal_open.set(false)
                                 >
                                     "Hủy"
@@ -1033,8 +1120,6 @@ pub fn Dashboard() -> impl IntoView {
 
                                                         {
                                                             let expenses_for_csv = d.recent_expenses.clone();
-                                                            // BỌC TRONG {} ĐỂ LEPTOS HIỂU ĐÂY LÀ CODE RUST
-                                                            // 1. TẠO BẢN SAO ĐỂ TRÁNH MOVE VALUE VÀO CLOSURE
 
                                                             view! {
                                                                 <button
@@ -1123,7 +1208,6 @@ pub fn Dashboard() -> impl IntoView {
                                                             })
                                                             .collect::<Vec<_>>();
                                                         if filtered_expenses.is_empty() {
-                                                            // FIX: CÔ LẬP VÙNG REACTIVITY BẰNG move || ĐỂ BẢO VỆ Ô INPUT
 
                                                             view! {
                                                                 <div style="background: #1a1a1a; border: 1px dashed #444; border-radius: 12px; padding: 40px; text-align: center;">
@@ -1171,7 +1255,13 @@ pub fn Dashboard() -> impl IntoView {
 
                                                                                                 <button
                                                                                                     class="btn-edit-tx"
-                                                                                                    style="background: #3498db; color: #fff; border: none; padding: 2px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; font-weight: bold;"
+                                                                                                    disabled=move || is_uploading.get()
+                                                                                                    style=move || {
+                                                                                                        format!(
+                                                                                                            "background: #3498db; color: #fff; border: none; padding: 2px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; font-weight: bold; {}",
+                                                                                                            if is_uploading.get() { "opacity: 0.5" } else { "" },
+                                                                                                        )
+                                                                                                    }
                                                                                                     on:click=move |_| {
                                                                                                         set_edit_id.set(exp_id);
                                                                                                         set_edit_merchant.set(exp_merchant.clone());
@@ -1209,8 +1299,15 @@ pub fn Dashboard() -> impl IntoView {
 
                                                                                                 <button
                                                                                                     class="btn-delete-tx"
-                                                                                                    style="background: #ff4d4d; color: #fff; border: none; padding: 2px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; font-weight: bold;"
+                                                                                                    disabled=move || is_uploading.get()
+                                                                                                    style=move || {
+                                                                                                        format!(
+                                                                                                            "background: #ff4d4d; color: #fff; border: none; padding: 2px 8px; border-radius: 6px; cursor: pointer; font-size: 0.7rem; font-weight: bold; {}",
+                                                                                                            if is_uploading.get() { "opacity: 0.5" } else { "" },
+                                                                                                        )
+                                                                                                    }
                                                                                                     on:click=move |_| {
+                                                                                                        set_is_uploading.set(true);
                                                                                                         let dom = api_domain.get_value();
                                                                                                         spawn_local(async move {
                                                                                                             let window = web_sys::window().unwrap();
@@ -1220,6 +1317,7 @@ pub fn Dashboard() -> impl IntoView {
                                                                                                                 )
                                                                                                                 .unwrap_or(false);
                                                                                                             if !confirm {
+                                                                                                                set_is_uploading.set(false);
                                                                                                                 return;
                                                                                                             }
                                                                                                             let storage = window.local_storage().unwrap().unwrap();
@@ -1228,6 +1326,11 @@ pub fn Dashboard() -> impl IntoView {
                                                                                                                 .ok()
                                                                                                                 .flatten()
                                                                                                                 .unwrap_or_else(|| "1".to_string());
+                                                                                                            let token = storage
+                                                                                                                .get_item("auth_token")
+                                                                                                                .ok()
+                                                                                                                .flatten()
+                                                                                                                .unwrap_or_default();
                                                                                                             let url = format!(
                                                                                                                 "{}/api/expenses/{}?user_id={}",
                                                                                                                 dom,
@@ -1235,13 +1338,20 @@ pub fn Dashboard() -> impl IntoView {
                                                                                                                 user_id,
                                                                                                             );
                                                                                                             let res = gloo_net::http::Request::delete(&url)
+                                                                                                                .header("Authorization", &format!("Bearer {}", token))
                                                                                                                 .send()
                                                                                                                 .await;
-                                                                                                            if res.is_ok() {
-                                                                                                                dash_resource.refetch();
-                                                                                                            } else {
-                                                                                                                let _ = window
-                                                                                                                    .alert_with_message("Lỗi mạng khi xóa giao dịch!");
+                                                                                                            set_is_uploading.set(false);
+                                                                                                            if let Ok(response) = res {
+                                                                                                                if check_auth_error(response.status()) {
+                                                                                                                    return;
+                                                                                                                }
+                                                                                                                if response.ok() {
+                                                                                                                    dash_resource.refetch();
+                                                                                                                } else {
+                                                                                                                    let _ = window
+                                                                                                                        .alert_with_message("Lỗi mạng khi xóa giao dịch!");
+                                                                                                                }
                                                                                                             }
                                                                                                         });
                                                                                                     }
@@ -1324,6 +1434,55 @@ pub fn Dashboard() -> impl IntoView {
                                                                             }
                                                                         })
                                                                         .collect_view()}
+                                                                </div>
+
+                                                                <div
+                                                                    class="pagination-controls"
+                                                                    style="display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px;"
+                                                                >
+                                                                    <button
+                                                                        disabled=move || current_page.get() <= 1
+                                                                        style=move || {
+                                                                            format!(
+                                                                                "padding: 8px 16px; border-radius: 6px; background: #333; color: #fff; border: none; font-weight: bold; {}",
+                                                                                if current_page.get() <= 1 {
+                                                                                    "opacity: 0.5; cursor: not-allowed;"
+                                                                                } else {
+                                                                                    "cursor: pointer;"
+                                                                                },
+                                                                            )
+                                                                        }
+                                                                        on:click=move |_| set_current_page.update(|p| *p -= 1)
+                                                                    >
+                                                                        "◀ Trang trước"
+                                                                    </button>
+
+                                                                    <span style="color: #fff; font-weight: bold; font-size: 0.9rem;">
+                                                                        {move || {
+                                                                            format!(
+                                                                                "Trang {} / {}",
+                                                                                d.current_page,
+                                                                                d.total_pages.max(1),
+                                                                            )
+                                                                        }}
+                                                                    </span>
+
+                                                                    <button
+                                                                        disabled=move || (current_page.get() >= d.total_pages)
+                                                                        style=move || {
+                                                                            format!(
+                                                                                "padding: 8px 16px; border-radius: 6px; background: #333; color: #fff; border: none; font-weight: bold; {}",
+                                                                                if current_page.get() >= d.total_pages {
+                                                                                    "opacity: 0.5; cursor: not-allowed;"
+                                                                                } else {
+                                                                                    "cursor: pointer;"
+                                                                                },
+                                                                            )
+                                                                        }
+                                                                        on:click=move |_| set_current_page.update(|p| *p += 1)
+                                                                    >
+                                                                        "Trang sau ▶"
+                                                                    </button>
                                                                 </div>
                                                             }
                                                                 .into_view()
@@ -1439,7 +1598,13 @@ pub fn Dashboard() -> impl IntoView {
                                     />
                                 </div>
                                 <button
-                                    style="width: 100%; padding: 12px; border-radius: 6px; background: #f1c40f; color: #000; border: none; font-weight: bold; cursor: pointer; margin-top: 10px;"
+                                    style=move || {
+                                        format!(
+                                            "width: 100%; padding: 12px; border-radius: 6px; background: #f1c40f; color: #000; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; {}",
+                                            if is_uploading.get() { "opacity: 0.5" } else { "" },
+                                        )
+                                    }
+                                    disabled=move || is_uploading.get()
                                     on:click=move |_| {
                                         set_is_uploading.set(true);
                                         let domain_url = api_domain.get_value();
@@ -1458,6 +1623,11 @@ pub fn Dashboard() -> impl IntoView {
                                                 .ok()
                                                 .flatten()
                                                 .unwrap_or_else(|| "1".to_string());
+                                            let token = storage
+                                                .get_item("auth_token")
+                                                .ok()
+                                                .flatten()
+                                                .unwrap_or_default();
                                             let req = serde_json::json!(
                                                 {
                                                 "user_id": user_id, "amount": amount, "merchant": merchant, "category_name": category_name, "bill_date": date
@@ -1466,25 +1636,35 @@ pub fn Dashboard() -> impl IntoView {
                                             let res = gloo_net::http::Request::post(
                                                     &format!("{}/api/expenses/manual", domain_url),
                                                 )
+                                                .header("Authorization", &format!("Bearer {}", token))
                                                 .json(&req)
                                                 .unwrap()
                                                 .send()
                                                 .await;
                                             set_is_uploading.set(false);
-                                            if res.is_ok() && res.unwrap().status() == 200 {
-                                                set_manual_amount.set("".to_string());
-                                                set_manual_merchant.set("".to_string());
-                                                dash_resource.refetch();
-                                            } else {
-                                                let _ = window
-                                                    .alert_with_message(
-                                                        "Lỗi nhập dữ liệu! Hãy kiểm tra lại số tiền.",
-                                                    );
+                                            if let Ok(response) = res {
+                                                if check_auth_error(response.status()) {
+                                                    return;
+                                                }
+                                                if response.status() == 200 {
+                                                    set_manual_amount.set("".to_string());
+                                                    set_manual_merchant.set("".to_string());
+                                                    dash_resource.refetch();
+                                                } else {
+                                                    let _ = window
+                                                        .alert_with_message("Lỗi nhập dữ liệu!");
+                                                }
                                             }
                                         });
                                     }
                                 >
-                                    "Thêm giao dịch"
+                                    {move || {
+                                        if is_uploading.get() {
+                                            "Đang lưu..."
+                                        } else {
+                                            "Thêm giao dịch"
+                                        }
+                                    }}
                                 </button>
                             </div>
                         </Show>
@@ -1526,10 +1706,14 @@ pub fn Dashboard() -> impl IntoView {
                                     />
                                 </div>
 
-                                // ĐÃ XÓA KHỐI INPUT DANH MỤC Ở ĐÂY
-
                                 <button
-                                    style="width: 100%; padding: 12px; border-radius: 6px; background: #2ecc71; color: #000; border: none; font-weight: bold; cursor: pointer; margin-top: 10px;"
+                                    style=move || {
+                                        format!(
+                                            "width: 100%; padding: 12px; border-radius: 6px; background: #2ecc71; color: #000; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; {}",
+                                            if is_uploading.get() { "opacity: 0.5" } else { "" },
+                                        )
+                                    }
+                                    disabled=move || is_uploading.get()
                                     on:click=move |_| {
                                         set_is_uploading.set(true);
                                         let domain_url = api_domain.get_value();
@@ -1546,6 +1730,11 @@ pub fn Dashboard() -> impl IntoView {
                                                 .ok()
                                                 .flatten()
                                                 .unwrap_or_else(|| "1".to_string());
+                                            let token = storage
+                                                .get_item("auth_token")
+                                                .ok()
+                                                .flatten()
+                                                .unwrap_or_default();
                                             let req = serde_json::json!(
                                                 {
                                                 "user_id": user_id, 
@@ -1557,33 +1746,42 @@ pub fn Dashboard() -> impl IntoView {
                                             let res = gloo_net::http::Request::post(
                                                     &format!("{}/api/expenses/subscription", domain_url),
                                                 )
+                                                .header("Authorization", &format!("Bearer {}", token))
                                                 .json(&req)
                                                 .unwrap()
                                                 .send()
                                                 .await;
                                             set_is_uploading.set(false);
-                                            if res.is_ok() && res.unwrap().status() == 200 {
-                                                set_manual_amount.set("".to_string());
-                                                set_manual_merchant.set("".to_string());
-                                                dash_resource.refetch();
-                                                load_subs();
-                                                let _ = window
-                                                    .alert_with_message(
-                                                        "Đăng ký thành công! Đã áp dụng luôn vào tháng này.",
-                                                    );
-                                            } else {
-                                                let _ = window
-                                                    .alert_with_message(
-                                                        "Lỗi! Hãy kiểm tra lại số tiền.",
-                                                    );
+                                            if let Ok(response) = res {
+                                                if check_auth_error(response.status()) {
+                                                    return;
+                                                }
+                                                if response.status() == 200 {
+                                                    set_manual_amount.set("".to_string());
+                                                    set_manual_merchant.set("".to_string());
+                                                    dash_resource.refetch();
+                                                    load_subs();
+                                                    let _ = window
+                                                        .alert_with_message("Đăng ký thành công!");
+                                                } else {
+                                                    let _ = window
+                                                        .alert_with_message(
+                                                            "Lỗi! Hãy kiểm tra lại số tiền.",
+                                                        );
+                                                }
                                             }
                                         });
                                     }
                                 >
-                                    "Lưu gói định kỳ"
+                                    {move || {
+                                        if is_uploading.get() {
+                                            "Đang lưu..."
+                                        } else {
+                                            "Lưu gói định kỳ"
+                                        }
+                                    }}
                                 </button>
 
-                                // PHẦN MỚI: DANH SÁCH CÁC GÓI ĐANG CHẠY
                                 <div style="margin-top: 20px; border-top: 1px solid #333; padding-top: 15px;">
                                     <p style="color: #888; font-size: 0.8rem; font-weight: bold; margin-bottom: 10px;">
                                         "CÁC GÓI ĐANG ĐĂNG KÝ"
@@ -1595,7 +1793,6 @@ pub fn Dashboard() -> impl IntoView {
                                                 .into_iter()
                                                 .map(|sub| {
                                                     let sub_id = sub.id;
-                                                    // Đã xóa let dom = ... ở đây
 
                                                     view! {
                                                         <div style="background: #111; padding: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #222;">
@@ -1611,8 +1808,19 @@ pub fn Dashboard() -> impl IntoView {
                                                                 </div>
                                                             </div>
                                                             <button
-                                                                style="background: none; border: 1px solid #444; color: #ff4d4d; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.7rem;"
+                                                                disabled=move || is_uploading.get()
+                                                                style=move || {
+                                                                    format!(
+                                                                        "background: none; border: 1px solid #444; color: #ff4d4d; padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; {}",
+                                                                        if is_uploading.get() {
+                                                                            "opacity: 0.5"
+                                                                        } else {
+                                                                            "cursor: pointer;"
+                                                                        },
+                                                                    )
+                                                                }
                                                                 on:click=move |_| {
+                                                                    set_is_uploading.set(true);
                                                                     let dom = api_domain.get_value();
                                                                     spawn_local(async move {
                                                                         let window = web_sys::window().unwrap();
@@ -1622,13 +1830,26 @@ pub fn Dashboard() -> impl IntoView {
                                                                             )
                                                                             .unwrap_or(false);
                                                                         if confirm {
-                                                                            let _ = gloo_net::http::Request::delete(
+                                                                            let storage = window.local_storage().unwrap().unwrap();
+                                                                            let token = storage
+                                                                                .get_item("auth_token")
+                                                                                .ok()
+                                                                                .flatten()
+                                                                                .unwrap_or_default();
+                                                                            let res = gloo_net::http::Request::delete(
                                                                                     &format!("{}/api/expenses/subscription/{}", dom, sub_id),
                                                                                 )
+                                                                                .header("Authorization", &format!("Bearer {}", token))
                                                                                 .send()
                                                                                 .await;
-                                                                            load_subs();
+                                                                            if let Ok(response) = res {
+                                                                                if check_auth_error(response.status()) {
+                                                                                    return;
+                                                                                }
+                                                                                load_subs();
+                                                                            }
                                                                         }
+                                                                        set_is_uploading.set(false);
                                                                     });
                                                                 }
                                                             >
@@ -1644,7 +1865,6 @@ pub fn Dashboard() -> impl IntoView {
                             </div>
                         </Show>
 
-                        // TAB 3: QUÉT AI / MẶC ĐỊNH
                         <Show when=move || input_mode.get() == "ai">
                             <Show
                                 when=move || is_camera_open.get()
@@ -1660,7 +1880,9 @@ pub fn Dashboard() -> impl IntoView {
                                             }
                                             on:dragover=move |ev| {
                                                 ev.prevent_default();
-                                                set_is_dragging.set(true);
+                                                if !is_uploading.get() {
+                                                    set_is_dragging.set(true);
+                                                }
                                             }
                                             on:dragleave=move |ev| {
                                                 ev.prevent_default();
@@ -1670,7 +1892,16 @@ pub fn Dashboard() -> impl IntoView {
                                         >
                                             <span class="icon">"📄"</span>
                                             <span class="text">"Kéo thả hóa đơn vào đây"</span>
-                                            <div class="action-buttons">
+                                            <div
+                                                class="action-buttons"
+                                                style=move || {
+                                                    if is_uploading.get() {
+                                                        "pointer-events: none; opacity: 0.5"
+                                                    } else {
+                                                        ""
+                                                    }
+                                                }
+                                            >
                                                 <button class="btn-action" on:click=start_camera.clone()>
                                                     "📸 Chụp ảnh"
                                                 </button>
@@ -1679,6 +1910,7 @@ pub fn Dashboard() -> impl IntoView {
                                                         type="file"
                                                         accept="image/*"
                                                         class="hidden"
+                                                        disabled=move || is_uploading.get()
                                                         on:change=on_file_change.clone()
                                                     />
                                                     "📁 Chọn file"

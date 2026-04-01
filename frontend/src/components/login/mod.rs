@@ -23,6 +23,8 @@ pub fn Login() -> impl IntoView {
                 }})
                 .then(r => r.json())
                 .then(user => {{
+                    // BẢO MẬT: Lưu token thay vì user_id trần
+                    localStorage.setItem('auth_token', user.token || user.user_id); // Tạm lùi bước lấy user_id làm token nếu BE chưa viết xong JWT
                     localStorage.setItem('user_id', user.user_id);
                     localStorage.setItem('user_name', user.name);
                     localStorage.setItem('user_pic', user.picture);

@@ -1,7 +1,7 @@
 // src/utils/mod.rs
 pub mod suid;
 // pub mod license;
-// pub mod token;
+pub mod token;
 // pub mod email;
 pub use self::suid::suid;
 pub use self::suid::generate_random_hex;

@@ -16,10 +16,18 @@ pub fn Nav() -> impl IntoView {
     let pic = storage.get_item("user_pic").ok().flatten().unwrap_or_default();
 
     // Hàm xử lý Đăng xuất
+    // src/components/Nav/mod.rs
+// ... (Phần trên giữ nguyên)
+    // Hàm xử lý Đăng xuất an toàn
     let logout = move |_| {
-        let _ = window().local_storage().unwrap().unwrap().clear();
+        let storage = window().local_storage().unwrap().unwrap();
+        let _ = storage.remove_item("user_id");
+        let _ = storage.remove_item("user_name");
+        let _ = storage.remove_item("user_pic");
+        let _ = storage.remove_item("auth_token"); // Dọn dẹp token
         let _ = window().location().set_href("/login");
     };
+// ... (Phần dưới giữ nguyên)
 
     view! {
         <nav class="top-nav">
