@@ -55,3 +55,17 @@ ALTER TABLE categories ADD COLUMN user_id VARCHAR(255) DEFAULT 'system';
 
 -- Cập nhật UNIQUE KEY để 1 user không bị trùng tên danh mục
 ALTER TABLE categories ADD UNIQUE KEY `user_slug_idx` (`user_id`, `slug`);
+
+CREATE TABLE IF NOT EXISTS subscriptions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(255) NOT NULL,
+    merchant VARCHAR(255) NOT NULL,
+    amount DOUBLE NOT NULL,
+    category_slug VARCHAR(255) NOT NULL,
+    category_name VARCHAR(255) NOT NULL
+);
+
+ALTER TABLE expenses ADD COLUMN subscription_id INT DEFAULT NULL;
+
+ALTER TABLE subscriptions ADD COLUMN start_date DATE DEFAULT CURRENT_DATE;
+ALTER TABLE subscriptions ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
